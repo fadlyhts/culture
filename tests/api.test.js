@@ -108,6 +108,23 @@ add('Team invitation rotation immediately revokes previously issued cookies',asy
     type:'rotateInvite',team:0
   },h))).status,200);assert.equal((await room.fetch(req('/api/state',undefined,a))).status,401);db.close();
 });
+add('Concurrent submissions from one team accept only one answer and preserve its score',async()=>{
+  const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room),a=await team(room,h,0);
+  const state=await (await room.fetch(req('/api/state',undefined,a))).json();
+  const answer={questionId:state.cur,generation:state.generation};
+  const responses=await Promise.all([
+    room.fetch(req('/api/team/submit',{...answer,text:'Tas',requestId:'one'},a)),
+    room.fetch(req('/api/team/submit',{...answer,text:'Laptop',requestId:'two'},a))
+  ]);
+  assert.deepEqual(responses.map(r=>r.status).sort(),[200,409]);
+  assert.equal((await responses.find(r=>r.status===409).json()).error.code,'ALREADY_SUBMITTED');
+  assert.equal(room.state.run[state.cur].submissions.length,1);
+  assert.equal((await room.fetch(req('/api/host/command',{type:'revealAll',questionId:state.cur,generation:state.generation},h))).status,200);
+  const accepted=room.state.run[state.cur].submissions[0];
+  const points=room.state.questions[0].a.find(answer=>answer.id===accepted.answerId).p;
+  assert.equal((await (await room.fetch(req('/api/state',undefined,a))).json()).teams[0].score,points);
+  db.close();
+});
 add('A host session cannot submit as a team; joining by invitation restores a team session',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room);
   const state=await (await room.fetch(req('/api/state',undefined,h))).json();

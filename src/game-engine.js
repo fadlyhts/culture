@@ -115,7 +115,7 @@ export function submit(s,team,data) {
   }
   if(r.locked||r.deadline&&Date.now()>=r.deadline)fail('LOCKED','Waktu habis. Jawaban sudah dikunci.',409);
   if(r.startedAt===null)fail('NOT_STARTED','Tunggu pembawa acara memulai soal.',409);
-  if(r.submissions.filter(x=>x.team===team).length>=40)fail('LIMIT','Maksimal 40 jawaban tiap soal.',429);
+   if(r.submissions.some(x=>x.team===team))fail('ALREADY_SUBMITTED','Tim ini sudah mengirim satu jawaban untuk soal ini.',409);
   const text=str(data.text,100,'Jawaban'),norm=normalize(text);
   if(!norm)fail('INVALID','Isi jawaban.');
   if(r.submissions.some(x=>x.normalized===norm))fail('DUPLICATE','Jawaban ini sudah dikirim.',409);

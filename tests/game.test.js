@@ -58,9 +58,20 @@ add('Lock order and reset generations reject late and stale writes',()=>{
   });assert.equal(scores(s)[0],0);
 });
 add('Idempotent retries return the original accepted submission',()=>{
-  const s=setup();const first=send(s,0,'Tas','retry');execute(s,{
-    type:'lock'
-  });assert.equal(send(s,0,'Tas','retry'),first);assert.equal(roundOf(s).submissions.length,1);
+   const s=setup();const first=send(s,0,'Tas','retry');execute(s,{
+     type:'lock'
+   });assert.equal(send(s,0,'Tas','retry'),first);assert.equal(roundOf(s).submissions.length,1);
+});
+add('A team gets one accepted answer per question, including after a reload or retry',()=>{
+  const s=setup(),first=send(s,0,'Tas','first');
+  const reloaded=JSON.parse(JSON.stringify(s));
+  assert.throws(()=>send(reloaded,0,'Laptop','second'),{code:'ALREADY_SUBMITTED'});
+  assert.deepEqual(send(reloaded,0,'Tas','first'),first);
+  send(reloaded,1,'Laptop');
+  assert.equal(roundOf(reloaded).submissions.length,2);
+  execute(reloaded,{type:'active',id:reloaded.questions[1].id});
+  roundOf(reloaded).startedAt=1;
+  assert.equal(send(reloaded,0,'Jawaban baru').team,0);
 });
 add('Reordering preserves ownership and totals; started questions cannot be edited',()=>{
   const s=setup();send(s,2,'Tas');execute(s,{

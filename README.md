@@ -46,12 +46,12 @@ Each secret command prompts locally for the value. Use the same length requireme
 
 If changing the Worker name, update wrangler.jsonc before deploying or adding secrets. The name identifies the deployment; keep it stable to retain the same hosted game. Cloudflare account login and deployment have not been performed in this environment.
 
-Free plans have usage limits and can stop serving when limits are exhausted. WebSocket hibernation reduces idle compute. This is intended for one game and six teams, with a maximum of 50 simultaneous live connections, 100 questions, 10 answers per question and 40 submissions per team per round. See Cloudflare's current [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/) before a large event.
+Free plans have usage limits and can stop serving when limits are exhausted. WebSocket hibernation reduces idle compute. This is intended for one game and six teams, with a maximum of 50 simultaneous live connections, 100 questions, 10 answers per question and one accepted submission per team per question. See Cloudflare's current [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/) before a large event.
 
 ## Operate the game
 
 1. Log in as host, edit questions and synonyms, and share each private team invitation.
-2. Select a question. Teams submit on their phones. The server orders arrivals; the first matching answer owns its points. Identical or synonymous duplicate claims are rejected.
+2. Select a question. Each team submits one answer on its phone for that question. The server orders arrivals; the first matching answer owns its points. Identical or synonymous duplicate claims are rejected without using that team's submission.
 3. Lock answers, then reveal the board. Revealing the first answer also locks the round. Scores are awarded only for revealed answers, with the round multiplier applied. Hiding reverses those points; revealing again does not add them twice.
 4. Move to the next question. Scores accumulate centrally and survive reloads. Reset clears gameplay and score adjustments, retaining questions and team names.
 
@@ -77,7 +77,7 @@ See docs/PLAN.md, docs/ARCHITECTURE.md and docs/VERIFICATION.md. Source is in sr
 
 The actual Node test runner passed all 30 checks, including real SQLite API tests and client transport tests. npm installation was attempted but package registry access was denied EACCES. Wrangler runtime, deployment dry-run, deployment and browser visual verification were not executed. Run the listed commands and a two-device rehearsal before hosting the event.
 
-The serialized game is capped at 1,800,000 UTF-8 bytes to stay below SQLite’s row-size limit. Counts (100 questions/40 submissions) are per-item limits and do not guarantee all maxima fit simultaneously. At the total limit, new changes are rejected with a clear error and the current game is retained; download a backup and reset gameplay to free space. Question commands accept up to 800,000 bytes; restore accepts up to 2,000,000 bytes. Exported backups use compact JSON so every saved game fits the restore limit.
+The serialized game is capped at 1,800,000 UTF-8 bytes to stay below SQLite’s row-size limit. At the total limit, new changes are rejected with a clear error and the current game is retained; download a backup and reset gameplay to free space. Question commands accept up to 800,000 bytes; restore accepts up to 2,000,000 bytes. Exported backups use compact JSON so every saved game fits the restore limit. Existing backups with multiple submissions per team remain restorable; new submissions follow the one-answer rule.
 
 ## Latest DATN reference
 

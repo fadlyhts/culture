@@ -98,7 +98,7 @@ $('#logout').onclick=async()=>{
 };
 $('#f').onsubmit=async e=>{
   e.preventDefault();
-  if(!state||busy||!['open','urgent'].includes(currentRound().phase)||!online)return;
+  if(!state||state.submissions.length||busy||!['open','urgent'].includes(currentRound().phase)||!online)return;
   const text=$('#ans').value.trim();
   if(!text){
     say('Isi jawaban dahulu.','bad');
@@ -124,8 +124,11 @@ $('#f').onsubmit=async e=>{
     if(error.code==='FORBIDDEN'||error.code==='AUTH'){
       live.stop();
       joinView('Sesi tim tidak aktif. Buka tautan undangan lengkap dari panitia di browser/profil terpisah, lalu masuk lagi.');
-    }else if(state&&state.cur===sent.questionId&&state.generation===sent.generation)say(error.message,'bad');
-    if(['DUPLICATE','LOCKED','STALE_ROUND','INVALID'].includes(error.code))pending=null;
+    }else{
+      if(error.code==='ALREADY_SUBMITTED')await live.start();
+      if(state&&state.cur===sent.questionId&&state.generation===sent.generation)say(error.message,'bad');
+    }
+    if(['ALREADY_SUBMITTED','DUPLICATE','LOCKED','STALE_ROUND','INVALID'].includes(error.code))pending=null;
   }
   finally{
     busy=false;
@@ -137,8 +140,8 @@ function updateInput(){
   $('#answerCount').textContent=$('#ans').value.length+'/100';
   if(!state)return;
   const accepting=['open','urgent'].includes(currentRound().phase);
-  $('#send').disabled=busy||!accepting||!online||!$('#ans').value.trim();
-  $('#send').textContent=busy?'Mengirim jawaban...':!state.started?'Tunggu soal dimulai':!accepting?'Jawaban terkunci':!online?'Menunggu koneksi':'Kirim jawaban';
+  $('#send').disabled=busy||state.submissions.length>0||!accepting||!online||!$('#ans').value.trim();
+  $('#send').textContent=busy?'Mengirim jawaban...':state.submissions.length?'Jawaban sudah dikirim':!state.started?'Tunggu soal dimulai':!accepting?'Jawaban terkunci':!online?'Menunggu koneksi':'Kirim jawaban';
 }
 function updateClock(){
   if(!state)return;
@@ -149,11 +152,11 @@ function updateClock(){
   $('#clockUnit').textContent=phase==='waiting'?'bersiap':phase==='locked'?'selesai':'detik';
   $('#roundClock').setAttribute('aria-label',phase==='waiting'?'Menunggu soal dimulai':phase==='locked'?'Waktu menjawab selesai':seconds===null?'Jawaban terbuka':seconds+' detik tersisa');
   $('#timeFill').style.transform='scaleX('+progress+')';
-  const hint=phase==='waiting'?'Bersiap, tunggu pembawa acara.':phase==='locked'?'Jawaban terkunci. Tunggu panitia membuka papan.':phase==='urgent'?'Waktu hampir habis! Kirim jawabanmu sekarang.':'Ayo, kumpulkan jawaban sebanyak mungkin!';
+  const hint=state.submissions.length?'Jawaban sudah dikirim. Tunggu panitia membuka papan.':phase==='waiting'?'Bersiap, tunggu pembawa acara.':phase==='locked'?'Jawaban terkunci. Tunggu panitia membuka papan.':phase==='urgent'?'Waktu hampir habis! Kirim jawabanmu sekarang.':'Pilih satu jawaban terbaik sebelum waktu habis!';
   if($('#roundHint').textContent!==hint)$('#roundHint').textContent=hint;
   $('#lockpill').textContent=phase==='waiting'?'Belum dimulai':phase==='locked'?'Terkunci':'Jawab sekarang';
   $('#lockpill').className='pill '+(phase==='locked'?'lock':phase==='waiting'?'waiting':'open');
-  $('#ans').disabled=phase==='waiting'||phase==='locked'||busy;
+  $('#ans').disabled=phase==='waiting'||phase==='locked'||state.submissions.length>0||busy;
   updateInput();
 }
 $('#ans').addEventListener('input',updateInput);

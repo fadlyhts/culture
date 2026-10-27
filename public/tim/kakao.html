@@ -1,0 +1,21 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>Tim Kakao / Family 100</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Bowlby+One&family=Anton&display=swap"><link rel="stylesheet" href="/team.css"></head><body style="--tc:#ff9f68"><main class="wrap"><p class="brand">Kuis Family 100 DATN</p><h1 id="tname">Tim Kakao</h1><p id="connection" class="help" role="status">Memeriksa undangan…</p><section class="card" id="join"><h2>Masuk ke tim</h2><p class="help">Buka tautan privat dari panitia atau tempel tautan di bawah.</p><form id="joinForm"><label for="invite">Tautan undangan<input id="invite" type="text" autocomplete="off" required></label><button type="submit">Masuk</button></form><p id="joinMsg" class="help" role="status"></p></section><section id="play" class="card arena" hidden aria-labelledby="qtext">
+  <div class="status"><span id="qinfo">Memuat...</span><span class="pill" id="lockpill">Menunggu</span></div>
+  <div class="question-stage">
+    <div class="round-clock" id="roundClock" role="timer" aria-label="Waktu menjawab">
+      <span class="clock-value" id="seconds">30</span><span class="clock-unit" id="clockUnit">detik</span>
+    </div>
+    <p class="question-kicker">Tantangan untuk timmu</p>
+    <h2 class="question" id="qtext"></h2>
+    <div class="time-track" aria-hidden="true"><span id="timeFill"></span></div>
+    <p class="round-hint" id="roundHint" role="status">Bersiap, tunggu pembawa acara.</p>
+  </div>
+  <form id="f" class="answer-pad" autocomplete="off">
+    <div class="answer-heading"><label for="ans">Apa jawaban timmu?</label><span id="answerCount">0/100</span></div>
+    <input id="ans" maxlength="100" placeholder="Tulis jawaban di sini..." enterkeyhint="send" aria-describedby="answerHelp" required>
+    <button type="submit" id="send" disabled>Kirim jawaban</button>
+    <p class="answer-help" id="answerHelp">Kirim satu jawaban, lalu lanjutkan dengan jawaban lainnya sebelum waktu habis.</p>
+  </form>
+  <p class="note info" id="msg" role="status" hidden></p>
+  <div class="round-summary"><span><b id="sentCount">0</b> jawaban terkirim</span><span><b id="teamScore">0</b> poin total</span></div>
+  <p class="help rules">Jawaban terkirim tidak bisa diubah. Kiriman paling awal mendapat hak atas jawaban yang sama. Poin masuk saat panitia membuka jawaban.</p>
+</section><section id="history" class="card" hidden aria-labelledby="mh"><h2 id="mh">Jawaban terkirim / Soal <span id="mq">-</span></h2><ol id="mine"></ol><p class="empty" id="mempty">Belum ada jawaban untuk soal ini.</p></section><button class="secondary" id="logout" hidden>Keluar dari tim</button></main><script type="module" src="/team.js"></script></body></html>

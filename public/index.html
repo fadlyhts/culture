@@ -1,0 +1,149 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Kuis Family 100 DATN</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Bowlby+One&family=Anton&display=swap"><link rel="stylesheet" href="/host.css"></head><body><section id="login" class="panel auth"><h1 class="brand">Kuis Family 100 DATN</h1><p>Masuk sebagai pembawa acara.</p><form id="loginForm"><label class="label" for="password">Kata sandi host</label><input class="field" id="password" type="password" autocomplete="current-password" required><button class="btn btn-gold" type="submit">Masuk</button></form><p id="loginMsg" class="msg" role="status">Memeriksa sesi…</p></section><div class="viewport" id="game" hidden>
+<div class="app" id="app">
+  <header class="top">
+    <h1 class="brand">Kuis Family 100 DATN</h1>
+    <div class="logos"><div class="logo-ptpn" role="img" aria-label="Holding Perkebunan"><img class="ptpn-swirl" alt="" src="/assets/reference-logo-1.png"><span class="ptpn-text">Holding Perkebunan</span></div><span class="logo-sep"></span><div class="logo-jrf logo-event"><img class="jrf-emblem" alt="" src="/assets/reference-logo-2.png"><span class="jrf-text">Java Coffee<br>Running<br>Festival</span></div><span class="logo-sep"></span><div class="mq" aria-label="Logo tim"><div class="mq-track" id="mqTrack"><img class="mq-i" alt="Buma Cima" src="/assets/reference-logo-3.png"><img class="mq-i" alt="Hoak" src="/assets/reference-logo-4.png"><img class="mq-i" alt="On Cocoa" src="/assets/reference-logo-5.png"><img class="mq-i" alt="Adinda Sekdir Pak DPP" src="/assets/reference-logo-6.png"><img class="mq-i" alt="Losis Minimal" src="/assets/reference-logo-7.png"><img class="mq-i" alt="Conversi Teh Kopi Komoditas" src="/assets/reference-logo-8.png"><img class="mq-i" alt="Sugar Mills" src="/assets/reference-logo-9.png"><img class="mq-i" alt="Naikin Rendemen Tebu" src="/assets/reference-logo-10.png"><img class="mq-i" alt="Arabica" src="/assets/reference-logo-11.png"><img class="mq-i" alt="Sugars" src="/assets/reference-logo-12.png"><img class="mq-i" alt="Speed" src="/assets/reference-logo-13.png"><img class="mq-i" alt="Tobacco Premium Blend" src="/assets/reference-logo-14.png"></div></div></div>
+    <div class="top-right"><button type="button" class="chip" id="btnLogout">Keluar</button>
+      <button type="button" class="chip" id="btnSound" aria-pressed="true">Suara</button>
+      <button type="button" class="chip" id="btnFull" title="Layar penuh">Penuh</button>
+      <button type="button" class="chip" id="btnResetTop" title="Reset skor dan kunci, kembali ke soal 1">Reset</button>
+      <div class="tabs" role="tablist" aria-label="Mode">
+        <button type="button" class="tab" role="tab" data-mode="play" aria-selected="true" aria-controls="view-play">Main</button>
+        <button type="button" class="tab" role="tab" data-mode="edit" aria-selected="false" aria-controls="view-edit">Edit</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN ================= -->
+  <section id="view-play" role="tabpanel" aria-label="Main">
+    <div class="scorebar">
+      <div class="teams" id="teams"></div>
+    </div>
+
+    <div class="qcard">
+      <div class="qmeta" id="qmeta">Soal 1 dari 1</div>
+      <div class="timer is-idle" id="timer" role="timer" title="Hitung mundur menjawab (klik untuk mulai)"><span class="tn" id="timerNum">30</span><span class="tb"><b id="timerBar"></b></span><span class="tl" id="timerLbl">Mulai</span></div>
+      <button type="button" class="btn btn-gold" id="btnStart">Mulai</button>
+      <h2 class="qtext" id="qtext"></h2>
+    </div>
+
+    <div class="board-frame" id="frame">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="deck">
+      <div class="group">
+        <button type="button" class="btn btn-gold" id="btnLockAll">Kunci jawaban</button>
+        <button type="button" class="btn" id="btnRevealAll">Buka semua</button>
+        <button type="button" class="btn btn-ghost" id="btnCloseAll">Tutup semua</button>
+        <button type="button" class="chip" id="btnPeek" aria-pressed="false" title="Tampilkan jawaban dan poin di kotak yang masih tertutup. Matikan sebelum layar dilihat peserta.">Intip jawaban</button>
+      </div>
+      <div class="group">
+        <button type="button" class="btn" id="btnPrev">← Sebelumnya</button>
+        <button type="button" class="btn" id="btnNext">Berikutnya →</button>
+        
+      </div>
+    </div>
+
+    <section class="answers" aria-labelledby="ansTitle">
+      <div class="ans-top">
+        <h2 id="ansTitle">Jawaban tim</h2>
+        <p class="ans-status" id="ansStatus" aria-live="polite"></p>
+        <button type="button" class="chip" id="btnAnsReload">Muat ulang</button>
+      </div>
+      <div class="acols" id="acols"></div>
+    </section>
+  </section>
+
+  <!-- ================= EDIT ================= -->
+  <section id="view-edit" role="tabpanel" aria-label="Edit soal" hidden>
+    <div class="edit">
+      <div class="panel">
+        <h2>Daftar soal</h2>
+        <div class="qlist" id="qlist"></div>
+        <button type="button" class="btn btn-gold" id="btnAddQ" style="width:100%">+ Soal baru</button>
+      </div>
+
+      <div class="stack">
+        <div class="panel">
+          <h2 id="editMeta">Soal</h2>
+          <label class="label" for="eq">Pertanyaan</label>
+          <textarea class="field" id="eq" rows="2" maxlength="220" placeholder="Contoh: Sebutkan hewan yang sering dijadikan peliharaan!"></textarea>
+
+          <div style="height:16px"></div>
+          <span class="label">Jawaban dan poin (maksimal 10)</span>
+          <div class="arow head" aria-hidden="true"><span></span><span>Jawaban</span><span>Sinonim</span><span style="text-align:right">Poin</span><span></span></div>
+          <div id="arows"></div>
+          <div class="row">
+            <button type="button" class="btn" id="btnAddA">+ Tambah jawaban</button>
+            <button type="button" class="btn btn-ghost" id="btnSortA">Urutkan dari poin tertinggi</button>
+          </div>
+
+          <div class="row" style="margin-top:20px">
+            <button type="button" class="btn btn-gold" id="btnSave">Simpan ke server</button><p class="msg" id="saveMsg" role="status"></p><button type="button" class="btn btn-gold" id="btnPlayThis">Mainkan soal ini</button>
+            <button type="button" class="btn" id="btnUp">Naikkan</button>
+            <button type="button" class="btn" id="btnDown">Turunkan</button>
+            <button type="button" class="btn" id="btnDup">Duplikat</button>
+            <button type="button" class="btn btn-ghost" id="btnDelQ">Hapus soal</button>
+          </div>
+          <p class="help" style="margin-top:12px">Klik Simpan ke server setelah mengedit. Soal yang sudah dimainkan harus direset sebelum diubah. Isi semua jawaban; hapus baris yang tidak digunakan. Sinonim (dipisah koma) membuat jawaban tim yang ditulis berbeda tetap dikenali, misalnya "bekal, bawa makan".</p>
+        </div>
+
+        <details class="panel" id="io">
+          <summary>Tempel atau salin banyak soal sekaligus</summary>
+          <p class="help">Satu soal per blok, dipisah baris kosong. Baris pertama adalah pertanyaan, baris berikutnya berbentuk <b>jawaban | poin | sinonim1, sinonim2</b> (sinonim boleh dikosongkan). Gunakan ini untuk memindahkan soal ke perangkat lain atau menyimpannya di dokumen.</p>
+          <textarea class="field" id="ioText" aria-label="Teks soal" spellcheck="false"></textarea>
+          <div class="row">
+            <button type="button" class="btn" id="ioReload">Muat ulang dari soal</button>
+            <button type="button" class="btn" id="ioCopy">Salin teks</button>
+            <button type="button" class="btn" id="ioAppend">Tambahkan sebagai soal baru</button>
+            <button type="button" class="btn btn-ghost" id="ioReplace">Ganti semua soal</button>
+          </div>
+          <p class="msg" id="ioMsg" aria-live="polite"></p>
+        </details>
+
+        <div class="panel">
+          <h2>Halaman jawaban tiap tim</h2>
+          <p class="help">Setiap tim punya halaman sendiri berisi nomor soal, kolom jawaban, dan tombol kirim. Jawaban yang sama dengan tim lain ditolak dengan pemberitahuan, dan jawaban tim yang mengirim lebih dulu yang dipakai. Halaman tim ikut terkunci saat Anda menekan Kunci jawaban. Bagikan tautan privat ke masing-masing tim. Tidak perlu akun peserta. Mengganti tautan memutus sesi tim lama.</p>
+          <div id="teamLinks" style="margin-top:12px"></div>
+          <p class="msg" id="tlMsg" aria-live="polite"></p>
+        </div>
+
+        <div class="panel"><h2>Permainan</h2>
+          <p class="help"><b>Cara main per soal:</b> Klik <b>Mulai</b> untuk menampilkan pertanyaan dan memberi tim 30 detik menjawab. Saat waktu habis, semua jawaban otomatis terkunci. Anda juga dapat mengklik <b>Kunci jawaban</b> (satu tombol untuk semua tim). Setelah dikunci, jawaban semua tim tidak bisa diubah lagi dan kunci tidak bisa dibuka; isian yang masuk setelahnya tidak dihitung; (3) buka jawaban di papan. Jawaban tim yang sama dengan jawaban papan otomatis menambah skor tim itu, dan skor terakumulasi dari semua soal. Membuka jawaban pertama sebelum dikunci akan mengunci otomatis. Angka (+) pada kartu tim adalah poin soal ini. Setelah 5 soal utama, podium ditampilkan bila tiga besar berbeda dan memiliki skor. Jika belum, lanjutkan maksimal 2 soal tambahan. Setelah itu podium menampilkan peringkat, termasuk juara bersama bila masih seri.</p>
+          <p class="help">Layar Main berukuran 16:9 dan muat satu layar tanpa gulir. Pintasan papan ketik: <b>1–9</b> dan <b>0</b> membuka jawaban, <b>←</b> <b>→</b> ganti soal.</p>
+          <div class="row">
+            <button type="button" class="btn" id="btnResetGame">Reset skor, kunci, dan jawaban tim</button>
+            <button type="button" class="btn btn-ghost" id="btnSample">Kembalikan soal contoh</button>
+          </div>
+          <div class="row"><label for="multiplier">Pengali ronde</label><select class="field" id="multiplier"><option value="1">×1</option><option value="2">×2</option><option value="3">×3</option></select><button class="btn btn-strike" id="btnStrike">Salah ×</button><button class="btn" id="btnClearStrikes">Hapus tanda salah</button></div><div class="row"><button class="btn" id="btnBackup">Unduh cadangan</button><label class="label" for="backupFile">Pulihkan cadangan</label><input class="field" type="file" id="backupFile" accept="application/json"></div><p class="msg" id="gameMsg" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Hasil permainan" tabindex="-1" hidden>
+    <div class="ov-rays"></div>
+    <i class="ball" style="left:4%;--bc:#ffd23f;--d:10s;--dl:0s"></i><i class="ball" style="left:15%;--bc:#14ec76;--d:13s;--dl:-4s"></i><i class="ball" style="left:27%;--bc:#ffffff;--d:11s;--dl:-8s"></i>
+    <i class="ball" style="left:66%;--bc:#ffffff;--d:12s;--dl:-2s"></i><i class="ball" style="left:78%;--bc:#ffd23f;--d:10s;--dl:-6s"></i><i class="ball" style="left:90%;--bc:#14ec76;--d:14s;--dl:-9s"></i>
+    <canvas class="ov-cv" id="ovCv"></canvas>
+    <section class="ov-panel" id="ovExtra" hidden>
+      <div class="ov-kicker">Setelah 5 soal</div>
+      <h2 class="ov-title">Babak tambahan</h2>
+      <p class="ov-sub" id="ovExtraSub"></p>
+      <ol class="ov-rank" id="ovRank"></ol>
+      <div class="ov-actions"><button type="button" class="btn btn-gold" id="ovGo">Mulai babak tambahan</button><button type="button" class="btn btn-ghost" id="ovBack">Kembali ke soal</button></div>
+    </section>
+    <section class="ov-podium" id="ovPodium" hidden>
+      <h2 class="ov-win">Selamat kepada para juara!</h2>
+      <div class="pod" id="pod"></div>
+      <div class="ov-others" id="ovOthers"></div>
+      <div class="ov-actions"><button type="button" class="btn" id="ovClose">Kembali</button></div>
+    </section>
+  </div>
+  <div id="ovToast" role="status" aria-live="polite"></div>
+</div>
+</div>
+
+<div class="xflash" id="xflash" aria-hidden="true"></div>
+
+<script type="module" src="/host.js"></script></body></html>

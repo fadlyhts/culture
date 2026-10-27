@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tim Tebu · Jawaban Kuis Family 100 DATN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Bowlby+One&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#0a1030;--glow:#1f3598;--deep:#060b24;--panel:#121b4a;--panel-2:#1a2766;--line:#34459d;--fg:#f3f5ff;--muted:#a6b4f2;--gold:#ffc530;--gold-2:#e8a000;--on-gold:#2b1d00;--bad:#ff6b6b;--ok:#5fe3ae;--tc:#c79bff;
+--font-display:'Bowlby One','Arial Black',Impact,sans-serif;--font-cond:'Barlow Condensed','Arial Narrow',sans-serif;--font-body:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg) radial-gradient(120% 80% at 50% -10%,var(--glow) 0%,transparent 62%) fixed;color:var(--fg);font:16px/1.4 var(--font-body);padding:16px 16px 40px}
+.wrap{max-width:520px;margin:0 auto;display:grid;gap:14px}
+.brand{font:400 13px/1 var(--font-cond);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{margin:0;font:400 clamp(30px,9vw,44px)/1.05 var(--font-display);color:var(--tc);text-shadow:0 3px 0 var(--deep)}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+.status{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;font:700 16px/1.1 var(--font-cond);letter-spacing:.06em;text-transform:uppercase}
+.pill{border-radius:999px;padding:7px 12px;border:2px solid var(--line);background:var(--deep)}
+.pill.open{border-color:var(--ok);color:var(--ok)}.pill.lock{border-color:var(--gold);color:var(--gold)}
+label{display:grid;gap:6px;font:700 14px/1 var(--font-cond);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+input{width:100%;font:600 20px/1.2 var(--font-body);color:var(--fg);background:var(--deep);border:2px solid var(--line);border-radius:10px;padding:12px 14px;min-height:50px}
+input:focus-visible,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.row{display:grid;grid-template-columns:96px 1fr;gap:10px}
+button{appearance:none;font:700 20px/1 var(--font-cond);letter-spacing:.06em;text-transform:uppercase;color:var(--on-gold);background:linear-gradient(180deg,#ffd652,var(--gold-2));border:2px solid #fff0b8;border-radius:12px;padding:14px;min-height:54px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.note{margin:0;border-radius:10px;padding:12px 14px;font-weight:600;border:2px solid var(--line);background:var(--deep)}
+.note[hidden]{display:none}
+.note.ok{border-color:var(--ok);color:var(--ok)}.note.bad{border-color:var(--bad);color:#ffb0b0}.note.info{color:var(--muted)}
+h2{margin:0;font:700 18px/1 var(--font-cond);letter-spacing:.08em;text-transform:uppercase}
+ol{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+li{display:grid;grid-template-columns:28px 1fr auto;gap:8px;background:var(--deep);border-radius:10px;padding:10px 12px;font:600 19px/1.2 var(--font-cond)}
+li b{color:var(--tc)}li time{font:500 13px/1.6 var(--font-body);color:var(--muted)}
+.empty{margin:0;color:var(--muted);font-size:14px}
+.help{margin:0;color:var(--muted);font-size:13px}
+</style></head><body>
+<main class="wrap">
+  <p class="brand">Kuis Family 100 DATN</p>
+  <h1 id="tname">Tim Tebu</h1>
+  <section class="card" aria-labelledby="fh">
+    <div class="status"><span id="qinfo">Memuat…</span><span class="pill" id="lockpill">…</span></div>
+    <form id="f" autocomplete="off">
+      <div style="display:grid;gap:12px">
+        <div class="row">
+          <label>Soal<input id="qn" type="number" inputmode="numeric" min="1" max="99" aria-label="Nomor soal"></label>
+          <label>Jawaban<input id="ans" type="text" maxlength="60" placeholder="Ketik jawaban" aria-label="Jawaban" enterkeyhint="send"></label>
+        </div>
+        <button type="submit" id="send" disabled>Kirim jawaban</button>
+      </div>
+    </form>
+    <p class="note info" id="msg" role="status" aria-live="polite" hidden></p>
+    <p class="help">Jawaban yang sudah terkirim tidak bisa diubah. Jika sama dengan jawaban tim lain yang lebih dulu terkirim, jawaban milik tim yang pertama dipakai.</p>
+  </section>
+  <section class="card" aria-labelledby="mh">
+    <h2 id="mh">Jawaban terkirim · Soal <span id="mq">-</span></h2>
+    <ol id="mine"></ol>
+    <p class="empty" id="mempty">Belum ada jawaban terkirim untuk soal ini.</p>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var TEAM = 1;
+  var NAMES = ['Tim Teh', 'Tim Tebu', 'Tim Kopi', 'Tim Kakao', 'Tim Tembakau', 'Tim Hore'];
+  var $ = function (s) { return document.querySelector(s); };
+  var db = null, uid = null, game = { q: 1, locked: false, teams: NAMES }, rows = [], dirty = false, busy = false, lastQ = null;
+  function norm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function tname(i) { return String((game.teams && game.teams[i]) || NAMES[i] || 'Tim ' + (i + 1)).trim(); }
+  function say(text, kind) { var m = $('#msg'); m.hidden = !text; m.textContent = text || ''; m.className = 'note ' + (kind || 'info'); }
+  function qnum() { return parseInt($('#qn').value, 10) || 0; }
+  function isLocked() { return !!game.locked && qnum() === game.q; }
+  function render() {
+    $('#tname').textContent = tname(TEAM);
+    document.title = tname(TEAM) + ' · Jawaban Kuis Family 100 DATN';
+    if (game.q !== lastQ) { lastQ = game.q; dirty = false; }
+    if (!dirty && document.activeElement !== $('#qn')) $('#qn').value = game.q || 1;
+    var q = qnum(), lk = isLocked();
+    $('#qinfo').textContent = 'Soal aktif: ' + (game.q || '-');
+    var p = $('#lockpill'); p.textContent = lk ? 'Terkunci' : 'Terbuka'; p.className = 'pill ' + (lk ? 'lock' : 'open');
+    $('#send').disabled = !db || busy || lk || q < 1;
+    $('#mq').textContent = q || '-';
+    var mine = rows.filter(function (r) { return r.team === TEAM && r.q === q; });
+    $('#mine').innerHTML = mine.map(function (r, i) {
+      var t = new Date(r.ts), hm = isNaN(t) ? '' : t.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return '<li><b>' + (i + 1) + '</b><span>' + esc(r.text) + '</span><time>' + hm + '</time></li>';
+    }).join('');
+    $('#mempty').hidden = mine.length > 0;
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var rnd = function () { return Math.random().toString(36).slice(2, 8); };
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  async function submit(text, q) {
+    var key = 'q' + q + '__' + norm(text).replace(/ /g, '-').slice(0, 120);
+    var ref = db.doc('claims/' + key), holder = (uid || 'anon') + '-' + rnd(), got = false;
+    function verdict(d) { return d && typeof d.team === 'number' ? { st: d.team === TEAM ? 'mine' : 'taken', by: d.team } : null; }
+    for (var i = 0; i < 5 && !got; i++) {
+      var s0 = await ref.get(), v0 = verdict(s0.exists ? s0.data() : null);
+      if (v0) return v0;
+      got = (await ref.acquire({ holder: holder, ttlMs: 3000 })).acquired;
+      if (!got) await sleep(350 + Math.random() * 300);
+    }
+    if (!got) return { st: 'busy' };
+    var snap = await ref.get(), v1 = verdict(snap.exists ? snap.data() : null);
+    if (v1) return v1;
+    var ts = Date.now();
+    await ref.set({ q: q, team: TEAM, text: text, ts: ts });
+    await db.collection('rows').add({ q: q, team: TEAM, text: text, ts: ts, key: key });
+    return { st: 'ok' };
+  }
+
+  $('#f').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (busy || !db) return;
+    var text = $('#ans').value.trim().replace(/\s+/g, ' '), q = qnum();
+    if (!text) { say('Ketik jawaban dulu.', 'bad'); return; }
+    if (!norm(text)) { say('Jawaban harus berisi huruf atau angka.', 'bad'); return; }
+    if (q < 1) { say('Isi nomor soal.', 'bad'); return; }
+    try {
+      var g = await db.doc('game/state').get(); if (g.exists) { game = Object.assign(game, g.data()); }
+    } catch (e1) { /* pakai data terakhir */ }
+    if (isLocked()) { render(); say('Jawaban untuk soal ' + q + ' sudah dikunci. Jawaban baru tidak diterima.', 'bad'); return; }
+    busy = true; render(); say('Mengirim…', 'info');
+    try {
+      var r = await submit(text, q);
+      if (r.st === 'ok') { say('Terkirim: "' + text + '". Jawaban ini sekarang terkunci atas nama ' + tname(TEAM) + '.', 'ok'); $('#ans').value = ''; }
+      else if (r.st === 'taken') say('Jawaban sama dengan ' + tname(r.by) + '. Mereka mengirim lebih dulu, jadi jawaban "' + text + '" dipakai oleh ' + tname(r.by) + '. Coba jawaban lain.', 'bad');
+      else if (r.st === 'mine') say('Jawaban ini sudah pernah dikirim oleh timmu.', 'info');
+      else say('Server sedang sibuk. Coba kirim lagi sebentar lagi.', 'bad');
+    } catch (err) {
+      say(err && err.code === 'invalid_argument' ? 'Akunmu belum punya izin mengirim jawaban. Minta panitia memberi akses Contributor.' : 'Gagal mengirim. Periksa koneksi lalu coba lagi.', 'bad');
+    }
+    busy = false; render(); $('#ans').focus();
+  });
+  $('#qn').addEventListener('input', function () { dirty = true; render(); });
+
+  render();
+  (async function () {
+    try {
+      if (!window.claude || !window.claude.use) throw 0;
+      var u = await window.claude.use('user'); if (u && u.id) { try { uid = await u.id(); } catch (e) { uid = null; } }
+      db = await window.claude.use('db');
+    } catch (e) { db = null; }
+    if (!db) { $('#qinfo').textContent = 'Tidak terhubung'; say('Halaman ini harus dibuka lewat claude.ai dengan akun yang sudah diberi akses oleh panitia.', 'bad'); render(); return; }
+    say('', '');
+    db.doc('game/state').onSnapshot(function (s) { if (s.exists) game = Object.assign({ q: 1, locked: false, teams: NAMES }, s.data()); render(); }, function () {});
+    db.collection('rows').where('team', '==', TEAM).onSnapshot(function (s) {
+      rows = s.docs.map(function (d) { return d.data(); }).sort(function (a, b) { return a.ts - b.ts; }); render();
+    }, function () {});
+    render();
+  })();
+})();
+</script>
+</body></html>

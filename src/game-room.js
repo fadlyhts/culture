@@ -7,7 +7,7 @@ import {
 }
  from './auth.js';
 import {shortCode} from '../public/invite-code.js';
-import QRCode from 'qrcode';
+import {qrPng} from './qr-png.js';
 const teamSlugs=['teh','tebu','kopi','kakao','tembakau','hore'];
 export const MAX_STATE_BYTES = 1800000;
 export class GameRoom {
@@ -124,9 +124,9 @@ export class GameRoom {
         if(!/^[0-5]$/.test(value))fail('INVALID','Tim tidak valid.');
         const team=Number(value);
         const link=new URL('/j/'+shortCode(this.state.invitations[team].token),request.url).href;
-        const svg=await QRCode.toString(link,{type:'svg',errorCorrectionLevel:'M',margin:2,width:240});
-        return new Response(svg,{headers:{
-          'Content-Type':'image/svg+xml; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'
+        const png=await qrPng(link);
+        return new Response(png,{headers:{
+          'Content-Type':'image/png','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'
         }});
       }
        if(request.method==='GET'&&path==='/api/state')return json(project(this.state,role));

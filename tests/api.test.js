@@ -12,6 +12,7 @@ import {
  from '../src/game-room.js';
 import worker from '../src/worker.js';
 import {shortCode} from '../public/invite-code.js';
+import {inflateSync} from 'node:zlib';
 const env={
   HOST_PASSWORD:'test-password-at-least-12',SESSION_SECRET:'integration-session-key-at-least-32-characters'
 };
@@ -126,19 +127,27 @@ add('Short invitation links open the right team and rotation invalidates old lin
   assert.equal((await room.fetch(req('/j/'+shortCode(room.state.invitations[0].token)))).status,302);
   db.close();
 });
-add('QR images encode short invitations for hosts only and update when rotated',async()=>{
+add('QR PNG images are host-only, valid and update when invitations rotate',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room),a=await team(room,h,0);
   const path='/api/host/qr?team=0';
   assert.equal((await room.fetch(req(path))).status,401);
   assert.equal((await room.fetch(req(path,undefined,a))).status,403);
   assert.equal((await room.fetch(req('/api/host/qr',undefined,h))).status,400);
-  const image=await room.fetch(req(path,undefined,h)),svg=await image.text();
+  const image=await room.fetch(req(path,undefined,h)),png=Buffer.from(await image.arrayBuffer());
   assert.equal(image.status,200);
-  assert.match(image.headers.get('Content-Type'),/image\/svg\+xml/);
-  assert.match(svg,/<svg[^>]*>.*<path/s);
-  assert.ok(!svg.includes(room.state.invitations[0].token));
+  assert.equal(image.headers.get('Content-Type'),'image/png');
+  assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  const size=png.readUInt32BE(16);
+  assert.equal(png.readUInt32BE(20),size);
+  assert.ok(size>=180);
+  assert.equal(png.readUInt8(24),8);
+  assert.equal(png.readUInt8(25),0);
+  const pixels=inflateSync(png.subarray(41,41+png.readUInt32BE(33)));
+  assert.equal(pixels.length,size*(size+1));
+  assert.equal(pixels[1],255); // quiet zone is white
+  assert.equal(pixels[(24)*(size+1)+25],0); // top-left finder is black
   assert.equal((await room.fetch(req('/api/host/command',{type:'rotateInvite',team:0},h))).status,200);
-  assert.notEqual(await (await room.fetch(req(path,undefined,h))).text(),svg);
+  assert.notDeepEqual(Buffer.from(await (await room.fetch(req(path,undefined,h))).arrayBuffer()),png);
   db.close();
 });
 add('Concurrent submissions from one team accept only one answer and preserve its score',async()=>{

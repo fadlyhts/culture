@@ -50,7 +50,7 @@ Free plans have usage limits and can stop serving when limits are exhausted. Web
 
 ## Operate the game
 
-1. Log in as host, edit questions and synonyms, and share each private team invitation.
+1. Log in as host, edit questions and synonyms, then copy each team's private short link or show/download its QR code from the team-link panel. Have participants scan on their phones or use a separate browser profile from the host. Each short link redirects to a team invitation; rotating an invitation invalidates its old short link and QR code. Existing full invitation links continue to work.
 2. Select a question. Each team submits one answer on its phone for that question. The server orders arrivals; the first matching answer owns its points. Identical or synonymous duplicate claims are rejected without using that team's submission.
 3. Lock answers, then reveal the board. Revealing the first answer also locks the round. Scores are awarded only for revealed answers, with the round multiplier applied. Hiding reverses those points; revealing again does not add them twice.
 4. Move to the next question. Scores accumulate centrally and survive reloads. Reset clears gameplay and score adjustments, retaining questions and team names.

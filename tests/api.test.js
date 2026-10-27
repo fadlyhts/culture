@@ -11,6 +11,7 @@ import {
 }
  from '../src/game-room.js';
 import worker from '../src/worker.js';
+import {shortCode} from '../public/invite-code.js';
 const env={
   HOST_PASSWORD:'test-password-at-least-12',SESSION_SECRET:'integration-session-key-at-least-32-characters'
 };
@@ -107,6 +108,38 @@ add('Team invitation rotation immediately revokes previously issued cookies',asy
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room),a=await team(room,h,0);assert.equal((await room.fetch(req('/api/host/command',{
     type:'rotateInvite',team:0
   },h))).status,200);assert.equal((await room.fetch(req('/api/state',undefined,a))).status,401);db.close();
+});
+add('Short invitation links open the right team and rotation invalidates old links',async()=>{
+  const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room);
+  const token=room.state.invitations[0].token,code=shortCode(token);
+  assert.match(code,/^[a-zA-Z0-9_-]{22}$/);
+  const link=req('/j/'+code);
+  const routed=await worker.fetch(link,{GAME:{idFromName:()=>0,get:()=>room}});
+  assert.equal(routed.status,302);
+  assert.equal(routed.headers.get('Location'),'/tim/teh.html#invite='+token);
+  assert.equal(routed.headers.get('Cache-Control'),'no-store');
+  assert.equal((await room.fetch(req('/j/'+code+'x'))).status,404);
+  assert.equal((await room.fetch(req('/api/team/join',{token}))).status,200);
+  assert.equal((await room.fetch(req('/api/host/command',{type:'rotateInvite',team:0},h))).status,200);
+  assert.equal((await room.fetch(link)).status,404);
+  assert.notEqual(shortCode(room.state.invitations[0].token),code);
+  assert.equal((await room.fetch(req('/j/'+shortCode(room.state.invitations[0].token)))).status,302);
+  db.close();
+});
+add('QR images encode short invitations for hosts only and update when rotated',async()=>{
+  const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room),a=await team(room,h,0);
+  const path='/api/host/qr?team=0';
+  assert.equal((await room.fetch(req(path))).status,401);
+  assert.equal((await room.fetch(req(path,undefined,a))).status,403);
+  assert.equal((await room.fetch(req('/api/host/qr',undefined,h))).status,400);
+  const image=await room.fetch(req(path,undefined,h)),svg=await image.text();
+  assert.equal(image.status,200);
+  assert.match(image.headers.get('Content-Type'),/image\/svg\+xml/);
+  assert.match(svg,/<svg[^>]*>.*<path/s);
+  assert.ok(!svg.includes(room.state.invitations[0].token));
+  assert.equal((await room.fetch(req('/api/host/command',{type:'rotateInvite',team:0},h))).status,200);
+  assert.notEqual(await (await room.fetch(req(path,undefined,h))).text(),svg);
+  db.close();
 });
 add('Concurrent submissions from one team accept only one answer and preserve its score',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room),a=await team(room,h,0);

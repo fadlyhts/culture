@@ -6,7 +6,8 @@
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": [
-      "/api/*"
+      "/api/*",
+      "/j/*"
     ]
   },
   "durable_objects": {

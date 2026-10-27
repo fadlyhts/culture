@@ -1,10 +1,11 @@
 import {ranking, segmentEnd, MAIN_QUESTIONS, EXTRA_QUESTIONS} from './game-flow.js';
+import {shortCode} from './invite-code.js';
 import {
    $, escapeHTML as esc, api, LiveGame, copy
 }
  from './client.js';
 let state=null, draft=[], editId=null, dirty=false, mode='play', peek=false, busy=false;
-let sound=true, audioContext, editorQuestions='';
+let sound=true, audioContext, editorQuestions='', linksKey='';
 let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTick=-1;
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
 function busyControls(value){
@@ -147,7 +148,14 @@ function renderEditor(){
 }
 const slugs=['teh','tebu','kopi','kakao','tembakau','hore'];
 function renderLinks(){
-  $('#teamLinks').innerHTML=state.teams.map((t,i)=>{const url=location.origin+'/tim/'+slugs[i]+'.html#invite='+state.invitations[i].token;return '<div class="row"><span>'+esc(t.name)+'</span><input class="field tl-in" readonly aria-label="Tautan '+esc(t.name)+'" value="'+esc(url)+'"><button class="btn" data-copy="'+i+'">Salin</button><a class="btn" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Buka</a><button class="btn btn-ghost" data-rotate="'+i+'">Ganti tautan</button></div>';}).join('');
+  const key=JSON.stringify(state.invitations.map((inv,i)=>[inv.token,inv.version,state.teams[i].name]));
+  if(key===linksKey)return;
+  linksKey=key;
+  $('#teamLinks').innerHTML=state.teams.map((t,i)=>{
+    const url=location.origin+'/j/'+shortCode(state.invitations[i].token);
+    const qr='/api/host/qr?team='+i+'&v='+state.invitations[i].version;
+    return '<div class="invite-card"><img class="invite-qr" src="'+qr+'" width="180" height="180" alt="QR undangan '+esc(t.name)+'" loading="lazy"><div class="invite-details"><strong>'+esc(t.name)+'</strong><input class="field tl-in" readonly aria-label="Tautan '+esc(t.name)+'" value="'+esc(url)+'"><div class="row"><button class="btn" data-copy="'+i+'">Salin tautan</button><a class="btn" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Buka</a><a class="btn" href="'+qr+'" download="qr-'+slugs[i]+'.svg">Unduh QR</a><button class="btn btn-ghost" data-rotate="'+i+'">Ganti tautan</button></div></div></div>';
+  }).join('');
 }
 function changed(){dirty=true;$('#saveMsg').textContent='Ada perubahan belum disimpan.';}
 function toText(qs){return qs.map(q=>[q.q,...q.a.map(a=>a.t+' | '+a.p+(a.al?' | '+a.al:''))].join('\n')).join('\n\n');}
@@ -177,7 +185,7 @@ $('#view-edit').addEventListener('input',e=>{const q=edited(),input=e.target;if(
 $('#view-edit').addEventListener('click',async e=>{
   const button=e.target.closest('button');if(!button)return;const q=edited(),index=draft.indexOf(q);
   if(button.dataset.edit){editId=button.dataset.edit;renderEditor();return;}
-  if(button.dataset.copy){const input=button.parentElement.querySelector('input');await copy(input.value,input,$('#tlMsg'));return;}
+  if(button.dataset.copy){const input=button.closest('.invite-card').querySelector('.tl-in');await copy(input.value,input,$('#tlMsg'));return;}
   if(button.dataset.rotate!==undefined){if(confirm('Ganti tautan tim dan putus sesi tim ini?'))await cmd({type:'rotateInvite',team:Number(button.dataset.rotate)});return;}
   if(button.classList.contains('a-del')){q.a=q.a.filter(a=>a.id!==button.closest('.arow').dataset.id);changed();renderEditor();return;}
   switch(button.id){

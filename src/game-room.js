@@ -6,6 +6,9 @@ import {
    json, errorResponse, readJSON, cookieToken, verifySession, signSession, sessionCookie, sameSecret
 }
  from './auth.js';
+import {shortCode} from '../public/invite-code.js';
+import QRCode from 'qrcode';
+const teamSlugs=['teh','tebu','kopi','kakao','tembakau','hore'];
 export const MAX_STATE_BYTES = 1800000;
 export class GameRoom {
    constructor(ctx,env){
@@ -92,6 +95,15 @@ export class GameRoom {
    async fetch(request){
     try{
       const path=new URL(request.url).pathname;
+      if(request.method==='GET'&&path.startsWith('/j/')){
+        const code=path.slice(3);
+        const index=/^[a-zA-Z0-9_-]{22}$/.test(code)?this.state.invitations.findIndex(invite=>shortCode(invite.token)===code):-1;
+        if(index<0)fail('NOT_FOUND','Tautan undangan tidak valid atau sudah diganti.',404);
+        return new Response(null,{status:302,headers:{
+          Location:'/tim/'+teamSlugs[index]+'.html#invite='+this.state.invitations[index].token,
+          'Cache-Control':'no-store','Referrer-Policy':'no-referrer'
+        }});
+      }
       if(request.method==='POST'&&path==='/api/host/login')return await this.login(request,await readJSON(request));
       if(request.method==='POST'&&path==='/api/team/join'){
         const data=await readJSON(request),index=this.state.invitations.findIndex(x=>x.token===data.token);
@@ -106,6 +118,17 @@ export class GameRoom {
         'Set-Cookie':sessionCookie('',request.url,0)
       });
       const role=await this.role(request);
+      if(request.method==='GET'&&path==='/api/host/qr'){
+        if(role.role!=='host')fail('FORBIDDEN','Khusus pembawa acara.',403);
+        const value=new URL(request.url).searchParams.get('team');
+        if(!/^[0-5]$/.test(value))fail('INVALID','Tim tidak valid.');
+        const team=Number(value);
+        const link=new URL('/j/'+shortCode(this.state.invitations[team].token),request.url).href;
+        const svg=await QRCode.toString(link,{type:'svg',errorCorrectionLevel:'M',margin:2,width:240});
+        return new Response(svg,{headers:{
+          'Content-Type':'image/svg+xml; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'
+        }});
+      }
        if(request.method==='GET'&&path==='/api/state')return json(project(this.state,role));
        if(request.method==='GET'&&path==='/api/live'){
         if(request.headers.get('Upgrade')?.toLowerCase()!=='websocket')fail('INVALID','WebSocket diperlukan.',426);

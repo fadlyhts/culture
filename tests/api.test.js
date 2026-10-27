@@ -108,6 +108,19 @@ add('Team invitation rotation immediately revokes previously issued cookies',asy
     type:'rotateInvite',team:0
   },h))).status,200);assert.equal((await room.fetch(req('/api/state',undefined,a))).status,401);db.close();
 });
+add('A host session cannot submit as a team; joining by invitation restores a team session',async()=>{
+  const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room);
+  const state=await (await room.fetch(req('/api/state',undefined,h))).json();
+  const answer={questionId:state.cur,generation:state.generation,text:'Tas',requestId:'role-switch'};
+  assert.equal((await room.fetch(req('/api/team/submit',answer,h))).status,403);
+  const joined=await room.fetch(req('/api/team/join',{token:state.invitations[0].token},h));
+  assert.equal(joined.status,200);
+  const cookie=joined.headers.get('Set-Cookie').split(';')[0];
+  const teamState=await (await room.fetch(req('/api/state',undefined,cookie))).json();
+  assert.equal(teamState.team,0);
+  assert.equal((await room.fetch(req('/api/team/submit',answer,cookie))).status,200);
+  db.close();
+});
 add('Login attempts are bounded and wrong credentials create no session',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env);for(let i=0;i<10;i++){
     const response=await room.fetch(req('/api/host/login',{

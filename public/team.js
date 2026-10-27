@@ -47,7 +47,7 @@ function render(){
 }
 const live=new LiveGame(next=>{
   if(next.team===undefined){
-    live.stop();joinView('Browser ini memakai sesi host. Gunakan browser/profil terpisah untuk peserta.');return;
+    live.stop();joinView('Browser ini memakai sesi host. Buka tautan undangan lengkap dari panitia di browser/profil terpisah untuk peserta.');return;
   }
   if(state&&next.revision<state.revision)return;const changed=state&&(state.cur!==next.cur||state.generation!==next.generation);acceptSnapshot(next);if(changed){
     pending=null;$('#ans').value='';say('Soal berganti. Jawab pertanyaan baru.');
@@ -121,7 +121,10 @@ $('#f').onsubmit=async e=>{
     }
   }
   catch(error){
-    if(state&&state.cur===sent.questionId&&state.generation===sent.generation)say(error.message,'bad');
+    if(error.code==='FORBIDDEN'||error.code==='AUTH'){
+      live.stop();
+      joinView('Sesi tim tidak aktif. Buka tautan undangan lengkap dari panitia di browser/profil terpisah, lalu masuk lagi.');
+    }else if(state&&state.cur===sent.questionId&&state.generation===sent.generation)say(error.message,'bad');
     if(['DUPLICATE','LOCKED','STALE_ROUND','INVALID'].includes(error.code))pending=null;
   }
   finally{

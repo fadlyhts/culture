@@ -9,8 +9,7 @@
       <button type="button" class="chip" id="btnResetTop" title="Reset skor dan kunci, kembali ke soal 1">Reset</button>
       <nav class="tabs" aria-label="Halaman host">
         <a class="tab" data-page="play" href="/" target="_blank" rel="noopener">Main</a>
-        <a class="tab" data-page="edit" href="/settings/soal" target="quiz-settings" rel="noopener">Soal utama ↗</a>
-        <a class="tab" data-page="extra" href="/settings/tambahan" target="quiz-settings" rel="noopener">Soal tambahan ↗</a>
+        <a class="tab" data-page="settings" href="/settings/soal" target="quiz-settings" rel="noopener">Setting</a>
       </nav>
     </div>
   </header>
@@ -58,6 +57,10 @@
 
   <!-- ================= EDIT ================= -->
   <section id="view-edit" role="tabpanel" aria-label="Edit soal" hidden>
+    <nav class="tabs" aria-label="Pengaturan soal" style="width:fit-content;margin-bottom:16px">
+      <a class="tab" data-page="edit" href="/settings/soal">Soal utama</a>
+      <a class="tab" data-page="extra" href="/settings/tambahan">Soal tambahan</a>
+    </nav>
     <div class="edit">
       <div class="panel">
         <h2 id="bankTitle">Soal utama</h2>

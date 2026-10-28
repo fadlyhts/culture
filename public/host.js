@@ -112,7 +112,7 @@ function setMode(){
   $('#view-play').hidden=value!=='play';
   $('#view-edit').hidden=value==='play';
   $('#view-edit').setAttribute('aria-label',value==='extra'?'Pengaturan soal tambahan':'Edit soal utama');
-  document.querySelectorAll('[data-page]').forEach(link=>{if(link.dataset.page===value)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
+  document.querySelectorAll('[data-page]').forEach(link=>{if(link.dataset.page===value||link.dataset.page==='settings'&&settingsPage)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
 }
 function renderPlay(){
     const q=active(),r=run(),list=q.a,gains=Array(6).fill(0);

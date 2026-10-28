@@ -1,8 +1,11 @@
 import {roundStatus} from './team-round.js';
+import {TEAM_NAMES} from './team-names.js';
 import {
    $, escapeHTML as esc, api, LiveGame
 }
  from './client.js';
+const entryTeam=['teh','tebu','kopi','kakao','tembakau','hore'].indexOf(location.pathname.split('/').pop().replace(/\.html$/,''));
+if(entryTeam>=0){$('#tname').textContent=TEAM_NAMES[entryTeam];document.title=TEAM_NAMES[entryTeam]+' / Family 100';}
 let state=null,online=false,busy=false,pending=null;
 let clockServerTime=Date.now(),clockReceivedAt=performance.now();
 const currentRound=()=>roundStatus(state,clockServerTime+performance.now()-clockReceivedAt);

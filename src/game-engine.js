@@ -3,6 +3,7 @@ import {
 }
  from './sample.js';
 import {MAIN_QUESTIONS,resolvePlaces} from '../public/game-flow.js';
+import {TEAM_NAMES} from '../public/team-names.js';
 export function tournamentOf(s){
   return s.tournament||(s.tournament={winners:[],baseline:Array(6).fill(0),resolved:[],finished:false});
 }
@@ -79,7 +80,7 @@ export function parseText(text) {
 export function createState() {
   const questions=parseText(SAMPLE_TEXT);
   return {
-    schema:1,revision:0,generation:1,sequence:0,cur:questions[0].id,questions,teams:['Tim Teh','Tim Tebu','Tim Kopi','Tim Kakao','Tim Tembakau','Tim Hore'].map(name=>({
+    schema:1,revision:0,generation:1,sequence:0,teamNamesVersion:1,cur:questions[0].id,questions,teams:TEAM_NAMES.map(name=>({
       name,adj:0
     })),run:{
     },invitations:Array.from({

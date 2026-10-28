@@ -13,6 +13,7 @@ import {
 import worker from '../src/worker.js';
 import {shortCode} from '../public/invite-code.js';
 import {inflateSync} from 'node:zlib';
+import {TEAM_NAMES} from '../public/team-names.js';
 const env={
   HOST_PASSWORD:'test-password-at-least-12',SESSION_SECRET:'integration-session-key-at-least-32-characters'
 };
@@ -109,6 +110,24 @@ add('Team invitation rotation immediately revokes previously issued cookies',asy
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room),a=await team(room,h,0);assert.equal((await room.fetch(req('/api/host/command',{
     type:'rotateInvite',team:0
   },h))).status,200);assert.equal((await room.fetch(req('/api/state',undefined,a))).status,401);db.close();
+});
+add('Existing SQLite games receive the six new team names once without losing gameplay',async()=>{
+  const db=new DatabaseSync(':memory:'),ctx=context(db);let room=new GameRoom(ctx,env);
+  const h=await host(room),a=await team(room,h,0);
+  const snapshot=await (await room.fetch(req('/api/state',undefined,a))).json();
+  await room.fetch(req('/api/team/submit',{questionId:snapshot.cur,generation:snapshot.generation,text:'Tas',requestId:'before-rename'},a));
+  const old=structuredClone(room.state);delete old.teamNamesVersion;old.teams.forEach((t,i)=>t.name='Old team '+i);
+  room.persist(old);
+  const before=structuredClone(room.state);
+  room=new GameRoom(ctx,env);
+  assert.deepEqual(room.state.teams.map(t=>t.name),TEAM_NAMES);
+  assert.deepEqual(room.state.run,before.run);
+  assert.deepEqual(room.state.invitations,before.invitations);
+  assert.equal(room.state.generation,before.generation);
+  room.mutate(s=>s.teams[0].name='Custom name after update');
+  room=new GameRoom(ctx,env);
+  assert.equal(room.state.teams[0].name,'Custom name after update');
+  db.close();
 });
 add('Short invitation links open the right team and rotation invalidates old links',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room);

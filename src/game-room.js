@@ -7,6 +7,7 @@ import {
 }
  from './auth.js';
 import {shortCode} from '../public/invite-code.js';
+import {TEAM_NAMES} from '../public/team-names.js';
 import {qrPng} from './qr-png.js';
 const teamSlugs=['teh','tebu','kopi','kakao','tembakau','hore'];
 export const MAX_STATE_BYTES = 1800000;
@@ -18,9 +19,15 @@ export class GameRoom {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS login_limit (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, until_ms INTEGER NOT NULL)');
     const row=ctx.storage.sql.exec('SELECT data FROM game WHERE id=1').toArray()[0];
     this.state=row?JSON.parse(row.data):createState();
+    const rename=this.state.teamNamesVersion!==1;
+    if(rename){
+      this.state.teams.forEach((team,i)=>team.name=TEAM_NAMES[i]);
+      this.state.teamNamesVersion=1;
+      this.state.revision++;
+    }
     tournamentOf(this.state);
     roundOf(this.state);
-    if(!row)this.persist(this.state);
+    if(!row||rename)this.persist(this.state);
     this.scheduleTimer();
   }
    scheduleTimer(){

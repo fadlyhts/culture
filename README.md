@@ -59,6 +59,10 @@ Set the multiplier before any submissions or lock. Started questions cannot be c
 
 Host and team sessions expire after 12 hours. Rotating a team's invitation invalidates that team's existing sessions. WebSocket reconnect receives a full authoritative snapshot; commands use HTTP. If disconnected, reconnect before submitting; the server rejects stale question/generation requests.
 
+### Audio
+
+The Main page plays an opening jingle and a quiet lobby theme after the first interaction or **Aktifkan suara** click, as browsers may block autoplay. A live question uses a rhythmic background loop; locking the round, reaching its deadline or showing results stops the background music. Revealing a claimed answer plays a correct-answer chime, while revealing an unclaimed answer plays a two-note buzzer. **Buka semua** plays one positive cue if any newly opened answer has a claimant, otherwise the buzzer. Initial snapshots and repeated snapshots do not replay reveal effects. **Suara: ON/OFF** controls all effects and music, including already playing notes, and is remembered in that browser. Settings and participant pages do not play this audio.
+
 ## Questions and backups
 
 The game remains on `/`. Its **Soal utama** and **Soal tambahan** links open separate browser tabs at `/settings/soal` and `/settings/tambahan`, so opening settings does not replace the projected play screen. In **Soal tambahan**, select **+ Soal tambahan baru**, enter its question, answers, aliases and points, then select **Simpan ke server**. Additional questions are appended and played in their displayed order. Imports/exports apply only to the selected settings page. The extra-round result screen also has **Atur soal tambahan** to open these settings in another tab. Settings share the host session and save to the same server; live game state stays synchronized across tabs.

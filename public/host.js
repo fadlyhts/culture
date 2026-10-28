@@ -2,15 +2,40 @@ import {MAIN_QUESTIONS} from './game-flow.js';
 import {shortCode} from './invite-code.js';
 import {bankEntries,insertQuestion,replaceBank} from './question-bank.js';
 import {hostPage} from './host-pages.js';
+import {GameAudio,revealCue} from './game-audio.js';
 import {
    $, escapeHTML as esc, api, LiveGame, copy
 }
  from './client.js';
 const pageMode=hostPage(location.pathname)||'play',settingsPage=pageMode!=='play';
 let state=null, draft=[], editId=null, dirty=false, mode=pageMode, busy=false;
-let sound=true, audioContext, editorQuestions='', linksKey='';
+let sound=true, editorQuestions='', linksKey='';
 let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTick=-1;
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
+const audio=new GameAudio({enabled:sound&&!settingsPage,onChange:updateSoundUI});
+function updateSoundUI(){
+  $('#btnSound').textContent=sound?'Suara: ON':'Suara: OFF';
+  $('#btnSound').setAttribute('aria-pressed',String(sound));
+  $('#btnEnableAudio').hidden=settingsPage||!sound||audio.unlocked;
+}
+function syncGameMusic(){
+  if(settingsPage)return;
+  const now=Date.now()+serverOffset;
+  const running=state?.started&&!state.locked&&(!state.deadline||state.deadline>now);
+  audio.setMusic(state?.tournament.finished||!$('#ov').hidden?'off':!state||!state.started?'lobby':running?'round':'off');
+}
+async function unlockAudio(event){
+  if(settingsPage||!sound||event?.target?.closest('#btnSound'))return;
+  await audio.unlock();updateSoundUI();syncGameMusic();
+}
+if(!settingsPage){
+  document.addEventListener('pointerdown',unlockAudio);
+  document.addEventListener('keydown',unlockAudio);
+  $('#btnEnableAudio').onclick=()=>unlockAudio();
+  window.addEventListener('pagehide',()=>audio.stop());
+  window.addEventListener('pageshow',syncGameMusic);
+}
+updateSoundUI();
 document.title=settingsPage?(pageMode==='extra'?'Pengaturan soal tambahan':'Pengaturan soal utama')+' / Family 100':'Kuis Family 100 DATN';
 for(const link of document.querySelectorAll('[data-page]')){
   if(settingsPage&&link.dataset.page!=='play'||!settingsPage&&link.dataset.page==='play')link.target='_self';
@@ -33,41 +58,24 @@ const status=(text)=>{
   $('#ansStatus').textContent=text;
 };
 function tone(frequency,at,duration,type='sine') {
-    if(!sound)return;
-    try{
-    audioContext ||= new AudioContext();
-    audioContext.resume();
-    const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),now=audioContext.currentTime+at;
-    oscillator.type=type;
-    oscillator.frequency.value=frequency;
-    gain.gain.setValueAtTime(.12,now);
-    gain.gain.exponentialRampToValueAtTime(.001,now+duration);
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start(now);
-    oscillator.stop(now+duration);
-  }
-  catch{
-  }
-}
-function ding(){
-  tone(880,0,.18);
-  tone(1320,.12,.35);
+  if(!settingsPage)audio.tone(frequency,at,duration,type);
 }
 const live=new LiveGame(receive,(text,online)=>{
   status(text);document.body.dataset.online=online;
 },()=>{
-  hideOverlay();state=null;$('#game').hidden=true;$('#login').hidden=false;document.body.classList.remove('mode-play');$('#loginMsg').textContent='Masuk untuk membuka permainan.';
+  hideOverlay();state=null;syncGameMusic();$('#game').hidden=true;$('#login').hidden=false;document.body.classList.remove('mode-play');$('#loginMsg').textContent='Masuk untuk membuka permainan.';
 });
 function receive(next) {
     if(!next.questions){
     live.stop();
+    audio.setMusic('off');
     $('#loginMsg').textContent='Browser ini sedang menjadi peserta. Keluar dari sesi tim atau gunakan browser/profil lain untuk host.';
     $('#game').hidden=true;
     $('#login').hidden=false;
     return;
   }
     if(state&&next.revision<state.revision)return;
+    const cue=settingsPage?null:revealCue(state,next);
     if(state&&(next.cur!==state.cur||next.generation!==state.generation))hideOverlay();
     serverOffset=(next.serverNow||Date.now())-Date.now();
     state=next;
@@ -79,6 +87,7 @@ function receive(next) {
   }
     setMode();
   if(!settingsPage)renderPlay();
+  if(cue)audio.play(cue);
   if(mode!=='play'){
     if(!dirty&&JSON.stringify(draft)!==editorQuestions)renderEditor();
     else renderLinks();
@@ -188,11 +197,11 @@ function requireSaved(){if(dirty){$('#saveMsg').textContent='Simpan perubahan se
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();$('#loginMsg').textContent='Memeriksa…';try{await api('/api/host/login',{password:$('#password').value});$('#password').value='';await live.start();}catch(error){$('#loginMsg').textContent=error.message;}});
 $('#btnLogout').onclick=async()=>{await api('/api/logout',{});live.stop();location.reload();};
 $('#btnFull').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{status('Layar penuh tidak tersedia di browser ini.');}};
-$('#btnSound').onclick=()=>{sound=!sound;try{localStorage.setItem('family100.sound',String(sound));}catch{}renderPlay();};
-$('#board').onclick=async e=>{const button=e.target.closest('[data-answer]');if(!button)return;const id=button.dataset.answer,open=run().open.includes(id);if(await cmd({type:open?'hide':'reveal',id})&&!open)ding();};
+$('#btnSound').onclick=()=>{sound=!sound;audio.setEnabled(sound&&!settingsPage);try{localStorage.setItem('family100.sound',String(sound));}catch{}if(sound)unlockAudio();syncGameMusic();updateSoundUI();};
+$('#board').onclick=async e=>{const button=e.target.closest('[data-answer]');if(!button)return;const id=button.dataset.answer,open=run().open.includes(id);await cmd({type:open?'hide':'reveal',id});};
 $('#btnStart').onclick=()=>cmd({type:'start'});
 $('#btnResetTop').onclick=resetGame;
-$('#btnLockAll').onclick=()=>cmd({type:'lock'});$('#btnRevealAll').onclick=async()=>{if(await cmd({type:'revealAll'}))ding();};$('#btnCloseAll').onclick=()=>cmd({type:'hideAll'});
+$('#btnLockAll').onclick=()=>cmd({type:'lock'});$('#btnRevealAll').onclick=()=>cmd({type:'revealAll'});$('#btnCloseAll').onclick=()=>cmd({type:'hideAll'});
 async function navigate(offset){
   if(!state||busy||!$('#ov').hidden)return;
   if(offset>0&&state.questionIndex>=Math.min(MAIN_QUESTIONS,state.questionCount)-1){
@@ -241,6 +250,7 @@ document.addEventListener('keydown',e=>{if(!$('#ov').hidden){handleOverlayKey(e)
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 function renderTimer(){
   if(!state||settingsPage)return;
+  syncGameMusic();
   const left=state.deadline?Math.max(0,(state.deadline-Date.now()-serverOffset)/1000):30;
   const done=state.locked||(state.deadline&&left<=0),sec=done?0:Math.ceil(left);
   const phase=done?'done':state.deadline?'run':'idle';
@@ -250,7 +260,7 @@ function renderTimer(){
   const key=state.cur+':'+state.generation;
   if(key!==timerKey){timerKey=key;lastTick=-1;}
   if(sec!==lastTick&&phase==='run'&&sec<=3)tone(720,0,.08,'square');
-  if(sec!==lastTick&&done&&lastTick>0)tone(110,0,.5,'sawtooth');
+  if(sec!==lastTick&&done&&lastTick>0&&state.deadline&&Date.now()+serverOffset>=state.deadline)audio.play('incorrect');
   lastTick=sec;
 }
 setInterval(renderTimer,100);
@@ -266,6 +276,7 @@ function hideOverlay(){
   $('#view-play').removeAttribute('inert');$('#view-edit').removeAttribute('inert');
   overlayFocus?.focus({preventScroll:true});overlayFocus=null;overlayQuestion=null;
   celebrationStop?.();
+  syncGameMusic();
 }
 let celebrationStop=null;
 const CROWN="<svg class=\"crown\" viewBox=\"0 0 64 44\" aria-hidden=\"true\"><path d=\"M4 38 L8 10 L22 24 L32 4 L42 24 L56 10 L60 38 Z\" fill=\"#ffd23f\" stroke=\"#b87900\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><rect x=\"4\" y=\"38\" width=\"56\" height=\"5\" rx=\"2\" fill=\"#e8a000\" stroke=\"#b87900\" stroke-width=\"2\"/><circle cx=\"8\" cy=\"9\" r=\"3.5\" fill=\"#ffffff\"/><circle cx=\"32\" cy=\"4\" r=\"3.5\" fill=\"#ffffff\"/><circle cx=\"56\" cy=\"9\" r=\"3.5\" fill=\"#ffffff\"/></svg>";
@@ -275,6 +286,7 @@ function showResults(kind){
   const ordered=state.teams.map((t,i)=>({...t,i,rank:t.place||4,score:t.place?winners.find(w=>w.team===i).score:t.contestScore})),ov=$('#ov');
   $('#ovExtra').hidden=kind!=='extra';$('#ovPodium').hidden=kind!=='podium';
   ov.className='ov ov-mode-'+kind;ov.hidden=false;
+  syncGameMusic();
   document.querySelector('#app > .top').setAttribute('inert','');$('#view-play').setAttribute('inert','');$('#view-edit').setAttribute('inert','');
   if(kind==='extra'){
     const hasNext=state.questionIndex+1<state.questionCount;
@@ -289,7 +301,7 @@ function showResults(kind){
     }).join('');
     $('#ovOthers').textContent=ordered.filter(t=>!t.place).map(t=>t.name).join(' / ');
     $('#ovClose').focus();
-    [523,659,784,1047].forEach((f,i)=>tone(f,i*.14,.3,'triangle'));
+    audio.play('podium');
     celebrationStop=celebrate();
   }
 }

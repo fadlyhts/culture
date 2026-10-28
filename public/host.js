@@ -7,7 +7,7 @@ import {
 }
  from './client.js';
 const pageMode=hostPage(location.pathname)||'play',settingsPage=pageMode!=='play';
-let state=null, draft=[], editId=null, dirty=false, mode=pageMode, peek=false, busy=false;
+let state=null, draft=[], editId=null, dirty=false, mode=pageMode, busy=false;
 let sound=true, audioContext, editorQuestions='', linksKey='';
 let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTick=-1;
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
@@ -124,13 +124,12 @@ function renderPlay(){
     $('#view-play').classList.toggle('prestart',!state.started);
     $('#btnStart').disabled=busy;
     renderTimer();
-    $('#frame').classList.toggle('peek-on',peek);
     const focusedAnswer=document.activeElement?.dataset?.answer;
     const board=$('#board'),cols=list.length>4?2:1;
     board.style.setProperty('--cols',cols);
   board.style.setProperty('--rows',Math.ceil(list.length/cols));
   const boardKey=JSON.stringify(q.a);
-  if(board.dataset.key!==boardKey){board.dataset.key=boardKey;board.innerHTML=list.map((a,i)=>{const open=r.open.includes(a.id),owner=r.own[a.id];return '<button class="slot '+(open?'is-open':'')+'" data-answer="'+a.id+'" aria-pressed="'+open+'" aria-label="'+esc(open?a.t+', '+a.p+' poin':'Buka jawaban '+(i+1))+'" '+(open&&owner!==undefined?'style="--oc:var(--t'+(owner+1)+')"':'')+'><span class="slot-inner"><span class="face front" aria-hidden="true"><span class="num">'+(i+1)+'</span><span class="peek"><span class="peek-t">'+esc(a.t)+'</span><span>'+a.p+'</span></span></span><span class="face back" aria-hidden="true"><span class="ans">'+esc(a.t)+'</span><span class="pts">'+a.p+'</span></span></span></button>';}).join('');
+  if(board.dataset.key!==boardKey){board.dataset.key=boardKey;board.innerHTML=list.map((a,i)=>{const open=r.open.includes(a.id),owner=r.own[a.id];return '<button class="slot '+(open?'is-open':'')+'" data-answer="'+a.id+'" aria-pressed="'+open+'" aria-label="'+esc(open?a.t+', '+a.p+' poin':'Buka jawaban '+(i+1))+'" '+(open&&owner!==undefined?'style="--oc:var(--t'+(owner+1)+')"':'')+'><span class="slot-inner"><span class="face front" aria-hidden="true"><span class="num">'+(i+1)+'</span></span><span class="face back" aria-hidden="true"><span class="ans">'+esc(a.t)+'</span><span class="pts">'+a.p+'</span></span></span></button>';}).join('');
   }
   list.forEach((answer,index)=>{const slot=board.querySelector('[data-answer="'+answer.id+'"]'),open=r.open.includes(answer.id),owner=r.own[answer.id];slot.classList.toggle('is-open',open);slot.setAttribute('aria-pressed',String(open));slot.setAttribute('aria-label',open?answer.t+', '+answer.p+' poin':'Buka jawaban '+(index+1));if(open&&owner!==undefined)slot.style.setProperty('--oc','var(--t'+(owner+1)+')');else slot.style.removeProperty('--oc');});
   if(focusedAnswer)board.querySelector('[data-answer="'+focusedAnswer+'"]')?.focus({preventScroll:true});
@@ -147,7 +146,7 @@ function renderPlay(){
   $('#btnPrev').disabled=state.questionIndex===0;$('#btnNext').disabled=!state.started;
   $('#btnNext').textContent=state.questionIndex>=Math.min(MAIN_QUESTIONS,state.questionCount)-1?'Tentukan juara':'Berikutnya';
   if(state.finalized){for(const button of board.querySelectorAll('button'))button.disabled=true;$('#btnRevealAll').disabled=true;$('#btnCloseAll').disabled=true;$('#btnStart').disabled=true;}
-  $('#btnPeek').setAttribute('aria-pressed',String(peek));$('#btnSound').setAttribute('aria-pressed',String(sound));$('#multiplier').value=r.mult;$('#multiplier').disabled=r.locked||r.startedAt!==null||r.submissions.length>0;if(busy)busyControls(true);
+  $('#btnSound').setAttribute('aria-pressed',String(sound));$('#multiplier').value=r.mult;$('#multiplier').disabled=r.locked||r.startedAt!==null||r.submissions.length>0;if(busy)busyControls(true);
 }
 function renderEditor(){
   const entries=editorEntries(),extra=editorBank()==='extra',q=edited();
@@ -190,7 +189,6 @@ $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();$('#login
 $('#btnLogout').onclick=async()=>{await api('/api/logout',{});live.stop();location.reload();};
 $('#btnFull').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{status('Layar penuh tidak tersedia di browser ini.');}};
 $('#btnSound').onclick=()=>{sound=!sound;try{localStorage.setItem('family100.sound',String(sound));}catch{}renderPlay();};
-$('#btnPeek').onclick=()=>{peek=!peek;renderPlay();};
 $('#board').onclick=async e=>{const button=e.target.closest('[data-answer]');if(!button)return;const id=button.dataset.answer,open=run().open.includes(id);if(await cmd({type:open?'hide':'reveal',id})&&!open)ding();};
 $('#btnStart').onclick=()=>cmd({type:'start'});
 $('#btnResetTop').onclick=resetGame;

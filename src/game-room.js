@@ -1,5 +1,5 @@
 import {
-   createState, command, submit, project, roundOf, validateQuestions, normalize, fail, expireRounds
+   createState, command, submit, project, roundOf, validateQuestions, normalize, fail, expireRounds, tournamentOf
 }
  from './game-engine.js';
 import {
@@ -18,6 +18,7 @@ export class GameRoom {
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS login_limit (key TEXT PRIMARY KEY, attempts INTEGER NOT NULL, until_ms INTEGER NOT NULL)');
     const row=ctx.storage.sql.exec('SELECT data FROM game WHERE id=1').toArray()[0];
     this.state=row?JSON.parse(row.data):createState();
+    tournamentOf(this.state);
     roundOf(this.state);
     if(!row)this.persist(this.state);
     this.scheduleTimer();
@@ -245,5 +246,12 @@ export function validateBackup(input,current){
     if(r.deadline)state.run[q.id].locked=true;
   }
   roundOf(state);
+  if(input.tournament){
+    const t=input.tournament;
+    if(!Array.isArray(t.winners)||t.winners.length>3||!Array.isArray(t.baseline)||t.baseline.length!==6||t.baseline.some(x=>!Number.isSafeInteger(x))||!Array.isArray(t.resolved)||t.resolved.length>100||new Set(t.resolved).size!==t.resolved.length||t.resolved.some(id=>!state.questions.some(q=>q.id===id))||typeof t.finished!=='boolean'||t.finished!==(t.winners.length===3))fail('INVALID','Hasil juara tidak valid.');
+    const seen=new Set();
+    t.winners.forEach((w,i)=>{if(!w||typeof w!=='object'||!Number.isInteger(w.team)||w.team<0||w.team>5||seen.has(w.team)||w.rank!==i+1||!Number.isSafeInteger(w.score)||w.score<=0)fail('INVALID','Juara tidak valid.');seen.add(w.team);});
+    state.tournament=structuredClone(t);
+  }
   return state;
 }

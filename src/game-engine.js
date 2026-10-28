@@ -2,6 +2,25 @@ import {
    SAMPLE_TEXT
 }
  from './sample.js';
+import {MAIN_QUESTIONS,resolvePlaces} from '../public/game-flow.js';
+export function tournamentOf(s){
+  return s.tournament||(s.tournament={winners:[],baseline:Array(6).fill(0),resolved:[],finished:false});
+}
+function finalized(s){
+  const index=s.questions.findIndex(q=>q.id===s.cur);
+  return tournamentOf(s).resolved.some(id=>s.questions.findIndex(q=>q.id===id)>=index);
+}
+function settle(s){
+  const index=s.questions.findIndex(q=>q.id===s.cur),r=roundOf(s),t=tournamentOf(s);
+  if(index<Math.min(MAIN_QUESTIONS,s.questions.length)-1)return;
+  if(finalized(s))return;
+  if(r.deadline&&Date.now()>=r.deadline)r.locked=true;
+  if(!r.locked)fail('LOCK_FIRST','Kunci jawaban sebelum menentukan juara.',409);
+  if(Object.keys(r.own).some(id=>!r.open.includes(id)))fail('REVEAL_FIRST','Buka semua jawaban yang mendapat poin sebelum menentukan juara.',409);
+  const total=scores(s),next=resolvePlaces(total,t.winners,t.baseline);
+  if(index<MAIN_QUESTIONS||next.length>t.winners.length)t.baseline=[...total];
+  t.winners=next;t.resolved.push(s.cur);t.finished=next.length===3;
+}
 export class GameError extends Error {
    constructor(code, message, status=400) {
      super(message);
@@ -115,17 +134,19 @@ export function submit(s,team,data) {
   }
   if(r.locked||r.deadline&&Date.now()>=r.deadline)fail('LOCKED','Waktu habis. Jawaban sudah dikunci.',409);
   if(r.startedAt===null)fail('NOT_STARTED','Tunggu pembawa acara memulai soal.',409);
-   if(r.submissions.some(x=>x.team===team))fail('ALREADY_SUBMITTED','Tim ini sudah mengirim satu jawaban untuk soal ini.',409);
+  const tournament=tournamentOf(s);
+  if(tournament.finished)fail('FINISHED','Permainan selesai. Podium sudah lengkap.',409);
+  if(finalized(s))fail('FINISHED','Hasil soal ini sudah ditetapkan.',409);
+  if(tournament.winners.some(w=>w.team===team))fail('WINNER','Tim sudah mendapat juara dan tidak ikut babak tambahan.',403);
+  if(r.submissions.some(x=>x.team===team))fail('ALREADY_SUBMITTED','Tim ini sudah mengirim satu jawaban untuk soal ini.',409);
   const text=str(data.text,100,'Jawaban'),norm=normalize(text);
   if(!norm)fail('INVALID','Isi jawaban.');
-  if(r.submissions.some(x=>x.normalized===norm))fail('DUPLICATE','Jawaban ini sudah dikirim.',409);
   const q=s.questions.find(q=>q.id===s.cur),a=matchAnswer(q.a,text);
-  if(a&&r.own[a.id]!==undefined)fail('DUPLICATE','Jawaban ini sudah diambil tim lain.',409);
   const row={
     seq:++s.sequence,team,requestId,text,normalized:norm,time:Date.now(),answerId:a?.id||null
   };
   r.submissions.push(row);
-  if(a)r.own[a.id]=team;
+  if(a&&r.own[a.id]===undefined)r.own[a.id]=team;
   s.revision++;
   return row;
 }
@@ -143,14 +164,22 @@ function startRound(r) {
 export function command(s,c) {
   if(!c||typeof c.type!=='string')fail('INVALID','Perintah tidak valid.');
   const r=roundOf(s),q=s.questions.find(q=>q.id===s.cur);
-   const roundCommands=['start','lock','reveal','hide','revealAll','hideAll','multiplier','strike','clearStrikes'];
-   if(roundCommands.includes(c.type)&&(c.questionId!==s.cur||c.generation!==r.generation))fail('STALE_ROUND','Soal berubah. Muat ulang sebelum menjalankan perintah.',409);
-   switch(c.type){
-     case 'active':if(!s.questions.some(q=>q.id===c.id))fail('INVALID','Soal tidak ditemukan.');
+    const roundCommands=['settle','start','lock','reveal','hide','revealAll','hideAll','multiplier','strike','clearStrikes'];
+    if(roundCommands.includes(c.type)&&(c.questionId!==s.cur||c.generation!==r.generation))fail('STALE_ROUND','Soal berubah. Muat ulang sebelum menjalankan perintah.',409);
+   if(['reveal','hide','revealAll','hideAll'].includes(c.type)&&finalized(s))fail('FINISHED','Poin soal yang hasilnya sudah ditetapkan tidak dapat diubah.',409);
+    switch(c.type){
+     case 'settle':settle(s);break;
+      case 'active':if(!s.questions.some(q=>q.id===c.id))fail('INVALID','Soal tidak ditemukan.');
+     if(s.questions.findIndex(q=>q.id===c.id)>=MAIN_QUESTIONS&&s.questions.findIndex(q=>q.id===c.id)>s.questions.findIndex(q=>q.id===s.cur)){
+       settle(s);
+       if(tournamentOf(s).finished)fail('FINISHED','Tiga juara sudah ditetapkan. Permainan selesai.',409);
+       const currentIndex=s.questions.findIndex(q=>q.id===s.cur),targetIndex=s.questions.findIndex(q=>q.id===c.id);
+       if(targetIndex!==currentIndex+1||!tournamentOf(s).resolved.includes(s.cur))fail('ORDER','Selesaikan soal sebelumnya sebelum babak tambahan.',409);
+     }
     s.cur=c.id;
     if(c.start===true)startRound(roundOf(s));else roundOf(s);
     break;
-     case 'start':startRound(r);
+     case 'start':if(tournamentOf(s).finished||finalized(s))fail('FINISHED','Hasil soal sudah ditetapkan.',409);startRound(r);
     break;
      case 'lock':r.locked=true;
     break;
@@ -174,13 +203,15 @@ export function command(s,c) {
     break;
      case 'team':integer(c.team,0,5);
     if(c.name!==undefined)s.teams[c.team].name=str(c.name,40,'Nama tim');
-    if(c.total!==undefined){
+     if(c.total!==undefined){
+       if(tournamentOf(s).winners.length)fail('FINISHED','Skor manual tidak dapat diubah setelah juara ditetapkan.',409);
       integer(c.total,-999999,999999);
       s.teams[c.team].adj+=c.total-scores(s)[c.team];
     }
     break;
      case 'questions':{
-      const next=validateQuestions(c.questions);
+       const next=validateQuestions(c.questions);
+       if(tournamentOf(s).resolved.length&&s.questions.some((q,i)=>next[i]?.id!==q.id))fail('STARTED','Urutan soal tidak dapat diubah setelah hasil juara ditetapkan.',409);
       for(const old of s.questions)if(started(s.run[old.id])){
         const n=next.find(q=>q.id===old.id);
         if(!n||JSON.stringify(n)!==JSON.stringify(old))fail('STARTED','Reset permainan sebelum mengubah/menghapus soal yang sudah dimainkan.',409);
@@ -189,14 +220,16 @@ export function command(s,c) {
       if(!next.some(q=>q.id===s.cur))s.cur=next[0].id;
       break;
     }
-     case 'reset':s.generation++;
+      case 'reset':s.generation++;
+     delete s.tournament;
     s.run={
     };
     s.teams.forEach(t=>t.adj=0);
     s.cur=s.questions[0].id;
     roundOf(s);
     break;
-     case 'sample':s.generation++;
+      case 'sample':s.generation++;
+     delete s.tournament;
     s.questions=parseText(SAMPLE_TEXT);
     s.cur=s.questions[0].id;
     s.run={
@@ -216,11 +249,15 @@ export function command(s,c) {
   return s;
 }
 export function project(s,role) {
+  const tournament=tournamentOf(s);
   const q=s.questions.find(q=>q.id===s.cur),r=roundOf(s),total=scores(s),now=Date.now(),begun=r.startedAt!==null,base={
     schema:s.schema,revision:s.revision,cur:s.cur,generation:r.generation,questionIndex:s.questions.findIndex(q=>q.id===s.cur),questionCount:s.questions.length,question:begun?q.q:'Tunggu pembawa acara menekan Mulai.',started:begun,deadline:r.deadline||null,serverNow:now,locked:r.locked||!!(r.deadline&&now>=r.deadline),mult:r.mult,strikes:r.strikes,teams:s.teams.map((t,i)=>({
-      name:t.name,score:total[i]
+      name:t.name,score:total[i],contestScore:total[i]-(tournament.baseline[i]||0),place:tournament.winners.find(w=>w.team===i)?.rank||null
     }))
   };
+  base.tournament=structuredClone(tournament);
+  base.finalized=finalized(s);
+  base.eligible=!tournament.finished&&!base.finalized&&!tournament.winners.some(w=>w.team===role.team);
   if(role.role==='host')return {
     ...base,questions:s.questions,run:s.run,invitations:s.invitations,adjustments:s.teams.map(t=>t.adj)
   };

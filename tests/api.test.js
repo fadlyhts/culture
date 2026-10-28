@@ -1,5 +1,5 @@
 import {TEST_TEXT} from './fixture-questions.js';
-import {parseText,roundOf} from '../src/game-engine.js';
+import {parseText,roundOf,command} from '../src/game-engine.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -97,7 +97,7 @@ add('Real SQLite API: authentication, concurrent claims, host scoring, and objec
     ...base,requestId:'a'
   },a)),room.fetch(req('/api/team/submit',{
     ...base,requestId:'b'
-  },b))]);assert.deepEqual(claims.map(r=>r.status).sort(),[200,409]);assert.equal((await room.fetch(req('/api/host/command',{
+  },b))]);assert.deepEqual(claims.map(r=>r.status).sort(),[200,200]);assert.equal((await room.fetch(req('/api/host/command',{
     type:'revealAll',questionId:snap.cur,generation:snap.generation
   },a))).status,403);assert.equal((await room.fetch(req('/api/host/command',{
     type:'revealAll',questionId:snap.cur,generation:snap.generation
@@ -166,6 +166,23 @@ add('Concurrent submissions from one team accept only one answer and preserve it
   const points=room.state.questions[0].a.find(answer=>answer.id===accepted.answerId).p;
   assert.equal((await (await room.fetch(req('/api/state',undefined,a))).json()).teams[0].score,points);
   db.close();
+});
+add('Fixed winners and extra-round eligibility survive SQLite object restarts',async()=>{
+  const db=new DatabaseSync(':memory:'),ctx=context(db);let room=new GameRoom(ctx,env);
+  const h=await host(room),a=await team(room,h,0);
+  room.mutate(s=>{
+    const extra=structuredClone(s.questions[0]);extra.id='extra-question';extra.a.forEach((a,i)=>a.id='extra-answer-'+i);
+    s.questions.push(extra);s.cur=s.questions[4].id;s.teams[0].adj=100;
+    const round=roundOf(s);round.startedAt=1;round.locked=true;
+    command(s,{type:'settle',questionId:s.cur,generation:round.generation});
+    command(s,{type:'active',id:extra.id,start:true});
+  });
+  room=new GameRoom(ctx,env);
+  const state=await (await room.fetch(req('/api/state',undefined,a))).json();
+  assert.equal(state.eligible,false);assert.equal(state.teams[0].place,1);
+  const response=await room.fetch(req('/api/team/submit',{questionId:state.cur,generation:state.generation,text:'Tas',requestId:'excluded'},a));
+  assert.equal(response.status,403);assert.equal((await response.json()).error.code,'WINNER');
+  assert.equal(room.state.run[state.cur].submissions.length,0);db.close();
 });
 add('A host session cannot submit as a team; joining by invitation restores a team session',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room);

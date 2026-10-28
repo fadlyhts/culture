@@ -104,13 +104,13 @@
 
         <div class="panel">
           <h2>Halaman jawaban tiap tim</h2>
-          <p class="help">Setiap tim punya halaman sendiri berisi nomor soal, kolom jawaban, dan tombol kirim. Tiap tim hanya boleh mengirim satu jawaban per soal. Jawaban yang sama dengan tim lain ditolak dengan pemberitahuan, dan jawaban tim yang mengirim lebih dulu yang dipakai. Halaman tim ikut terkunci saat Anda menekan Kunci jawaban. Bagikan tautan singkat atau QR privat ke masing-masing tim; pindai di ponsel atau profil browser terpisah dari host. Mengganti tautan memutus sesi tim lama dan membuat QR baru.</p>
+          <p class="help">Setiap tim hanya boleh mengirim satu jawaban per soal. Jawaban benar yang sama dari tim lain tetap dicatat, tetapi hanya tim pengirim pertama yang mendapat poin. Juara yang sudah ditetapkan tidak bisa ikut babak tambahan. Bagikan tautan singkat atau QR privat ke masing-masing tim; pindai di ponsel atau profil browser terpisah dari host. Mengganti tautan memutus sesi tim lama dan membuat QR baru.</p>
           <div id="teamLinks" style="margin-top:12px"></div>
           <p class="msg" id="tlMsg" aria-live="polite"></p>
         </div>
 
         <div class="panel"><h2>Permainan</h2>
-          <p class="help"><b>Cara main per soal:</b> Klik <b>Mulai</b> untuk menampilkan pertanyaan dan memberi tim 30 detik menjawab. Saat waktu habis, semua jawaban otomatis terkunci. Anda juga dapat mengklik <b>Kunci jawaban</b> (satu tombol untuk semua tim). Setelah dikunci, jawaban semua tim tidak bisa diubah lagi dan kunci tidak bisa dibuka; isian yang masuk setelahnya tidak dihitung; (3) buka jawaban di papan. Jawaban tim yang sama dengan jawaban papan otomatis menambah skor tim itu, dan skor terakumulasi dari semua soal. Membuka jawaban pertama sebelum dikunci akan mengunci otomatis. Angka (+) pada kartu tim adalah poin soal ini. Setelah 5 soal utama, podium ditampilkan bila tiga besar berbeda dan memiliki skor. Jika belum, lanjutkan maksimal 2 soal tambahan. Setelah itu podium menampilkan peringkat, termasuk juara bersama bila masih seri.</p>
+          <p class="help"><b>Cara main per soal:</b> Klik <b>Mulai</b> untuk memberi tim 30 detik menjawab. Saat waktu habis atau jawaban pertama dibuka, ronde terkunci. Poin setiap jawaban benar diberikan hanya ke tim pengirim pertama saat jawaban dibuka. Setelah 5 soal utama, buka poin lalu klik <b>Tentukan juara</b>. Pemimpin tunggal dengan skor positif mendapat posisi podium secara berurutan; seri belum mendapat juara. Juara yang sudah tetap tidak ikut lagi. Tim tersisa memulai perebutan dari 0 dan menjalani satu soal tambahan setiap kali; skor saat seri diteruskan sampai ada juara. Jika ada juara baru, perebutan posisi berikutnya dimulai dari 0. Begitu juara 1–3 lengkap, podium muncul. Jika soal habis, tambahkan soal lewat Edit lalu lanjutkan.</p>
           <p class="help">Layar Main berukuran 16:9 dan muat satu layar tanpa gulir. Pintasan papan ketik: <b>1–9</b> dan <b>0</b> membuka jawaban, <b>←</b> <b>→</b> ganti soal.</p>
           <div class="row">
             <button type="button" class="btn" id="btnResetGame">Reset skor, kunci, dan jawaban tim</button>
@@ -127,7 +127,7 @@
     <i class="ball" style="left:66%;--bc:#ffffff;--d:12s;--dl:-2s"></i><i class="ball" style="left:78%;--bc:#ffd23f;--d:10s;--dl:-6s"></i><i class="ball" style="left:90%;--bc:#14ec76;--d:14s;--dl:-9s"></i>
     <canvas class="ov-cv" id="ovCv"></canvas>
     <section class="ov-panel" id="ovExtra" hidden>
-      <div class="ov-kicker">Setelah 5 soal</div>
+      <div class="ov-kicker">Perebutan podium</div>
       <h2 class="ov-title">Babak tambahan</h2>
       <p class="ov-sub" id="ovExtraSub"></p>
       <ol class="ov-rank" id="ovRank"></ol>

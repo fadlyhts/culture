@@ -34,9 +34,7 @@ const send=(s,team,text,requestId=crypto.randomUUID())=>submit(s,team,{
   questionId:s.cur,generation:roundOf(s).generation,text,requestId
 });
 add('First matching claim wins and repeated synonyms cannot earn points',()=>{
-  const s=setup();s.questions[0].a[0].al='bag';send(s,0,'bag');assert.throws(()=>send(s,1,'tas'),{
-    code:'DUPLICATE'
-  });assert.deepEqual(scores(s),[0,0,0,0,0,0]);execute(s,{
+  const s=setup();s.questions[0].a[0].al='bag';send(s,0,'bag');send(s,1,'tas');assert.throws(()=>send(s,1,'bag'),{code:'ALREADY_SUBMITTED'});assert.deepEqual(scores(s),[0,0,0,0,0,0]);execute(s,{
     type:'reveal',id:s.questions[0].a[0].id
   });assert.deepEqual(scores(s),[30,0,0,0,0,0]);execute(s,{
     type:'hide',id:s.questions[0].a[0].id
@@ -62,13 +60,16 @@ add('Idempotent retries return the original accepted submission',()=>{
      type:'lock'
    });assert.equal(send(s,0,'Tas','retry'),first);assert.equal(roundOf(s).submissions.length,1);
 });
-add('A team gets one accepted answer per question, including after a reload or retry',()=>{
+add('Each team gets one answer, while different teams may submit the same correct answer',()=>{
   const s=setup(),first=send(s,0,'Tas','first');
   const reloaded=JSON.parse(JSON.stringify(s));
   assert.throws(()=>send(reloaded,0,'Laptop','second'),{code:'ALREADY_SUBMITTED'});
   assert.deepEqual(send(reloaded,0,'Tas','first'),first);
-  send(reloaded,1,'Laptop');
+  send(reloaded,1,'Tas');
   assert.equal(roundOf(reloaded).submissions.length,2);
+  execute(reloaded,{type:'revealAll'});
+  assert.equal(scores(reloaded)[0],30);
+  assert.equal(scores(reloaded)[1],0);
   execute(reloaded,{type:'active',id:reloaded.questions[1].id});
   roundOf(reloaded).startedAt=1;
   assert.equal(send(reloaded,0,'Jawaban baru').team,0);

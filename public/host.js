@@ -1,4 +1,4 @@
-import {ranking, segmentEnd, MAIN_QUESTIONS, EXTRA_QUESTIONS} from './game-flow.js';
+import {MAIN_QUESTIONS} from './game-flow.js';
 import {shortCode} from './invite-code.js';
 import {
    $, escapeHTML as esc, api, LiveGame, copy
@@ -107,7 +107,7 @@ function renderPlay(){
     q.a.forEach(a=>{
     if(r.open.includes(a.id)&&r.own[a.id]!==undefined)gains[r.own[a.id]]+=a.p*r.mult;
   });
-    $('#qmeta').textContent=state.questionIndex<MAIN_QUESTIONS?'Soal '+(state.questionIndex+1)+' dari '+Math.min(state.questionCount,MAIN_QUESTIONS):'Soal tambahan '+(state.questionIndex-MAIN_QUESTIONS+1)+' dari '+Math.min(EXTRA_QUESTIONS,Math.max(0,state.questionCount-MAIN_QUESTIONS));
+    $('#qmeta').textContent=state.questionIndex<MAIN_QUESTIONS?'Soal '+(state.questionIndex+1)+' dari '+Math.min(state.questionCount,MAIN_QUESTIONS):'Soal tambahan '+(state.questionIndex-MAIN_QUESTIONS+1)+' / perebutan juara '+(state.tournament.winners.length+1);
     $('#qtext').textContent=state.started?q.q:'Tekan Mulai untuk memunculkan Soal '+(state.questionIndex+1)+'.';
     $('#view-play').classList.toggle('prestart',!state.started);
     $('#btnStart').disabled=busy;
@@ -124,16 +124,17 @@ function renderPlay(){
   if(focusedAnswer)board.querySelector('[data-answer="'+focusedAnswer+'"]')?.focus({preventScroll:true});
   const teamMarkup=state.teams.map((t,i)=>'<div class="team" style="--tc:var(--t'+(i+1)+')"><input class="team-name" data-team="'+i+'" aria-label="Nama tim '+(i+1)+'" maxlength="40" value="'+esc(t.name)+'"><input class="team-score" type="number" data-score="'+i+'" aria-label="Skor '+esc(t.name)+'" value="'+t.score+'"><span class="gain">'+(gains[i]?'+'+gains[i]:'')+'</span></div>').join('');
   if(!$('#teams').children.length)$('#teams').innerHTML=teamMarkup;
-  state.teams.forEach((team,i)=>{const name=$('[data-team="'+i+'"]'),score=$('[data-score="'+i+'"]');if(document.activeElement!==name)name.value=team.name;if(document.activeElement!==score)score.value=team.score;$('#teams').children[i].querySelector('.gain').textContent=gains[i]?'+'+gains[i]:'';});
+  state.teams.forEach((team,i)=>{const name=$('[data-team="'+i+'"]'),score=$('[data-score="'+i+'"]');if(document.activeElement!==name)name.value=team.name;if(document.activeElement!==score)score.value=team.score;score.disabled=state.tournament.winners.length>0;$('#teams').children[i].querySelector('.gain').textContent=team.place?'Juara '+team.place:state.questionIndex>=MAIN_QUESTIONS?'Perebutan: '+team.contestScore:gains[i]?'+'+gains[i]:'';});
   $('#acols').innerHTML=state.teams.map((t,i)=>{
     const rows=r.submissions.filter(x=>x.team===i),hidden=!state.locked;
-    return '<div class="acol '+(hidden?'is-hidden':'')+'" style="--tc:var(--t'+(i+1)+')"><div class="ahead"><span class="aname">'+esc(t.name)+'</span><span class="acount">'+rows.length+'</span></div>'+(hidden?'<p class="aempty ahid">Jawaban disembunyikan sampai terkunci.</p>':rows.length?'<ol class="alist">'+rows.map(x=>'<li class="'+(x.answerId&&r.open.includes(x.answerId)?'hit':'')+'"><span>'+esc(x.text)+'<br><time class="atime">'+new Date(x.time).toLocaleTimeString('id-ID')+'</time></span></li>').join('')+'</ol>':'<p class="aempty">Belum ada jawaban.</p>')+'</div>';
+    return '<div class="acol '+(hidden?'is-hidden':'')+'" style="--tc:var(--t'+(i+1)+')"><div class="ahead"><span class="aname">'+esc(t.name)+'</span><span class="acount">'+rows.length+'</span></div>'+(hidden?'<p class="aempty ahid">Jawaban disembunyikan sampai terkunci.</p>':rows.length?'<ol class="alist">'+rows.map(x=>'<li class="'+(x.answerId&&r.open.includes(x.answerId)&&r.own[x.answerId]===i?'hit':'')+'"><span>'+esc(x.text)+(x.answerId&&r.open.includes(x.answerId)?r.own[x.answerId]===i?' / tercepat, dapat poin':' / benar, 0 poin (didahului tim lain)':'')+'<br><time class="atime">'+new Date(x.time).toLocaleTimeString('id-ID')+'</time></span></li>').join('')+'</ol>':'<p class="aempty">Belum ada jawaban.</p>')+'</div>';
   }).join('');
   $('#btnLockAll').textContent=r.locked?'✓ Terkunci':'Kunci jawaban';$('#btnLockAll').disabled=state.locked||!state.started;
   $('#btnCloseAll').disabled=!r.open.length||!state.started;$('#btnRevealAll').disabled=!state.started;
   for(const button of board.querySelectorAll('button'))button.disabled=!state.started;
   $('#btnPrev').disabled=state.questionIndex===0;$('#btnNext').disabled=!state.started;
-  $('#btnNext').textContent=segmentEnd(state.questionIndex,state.questionCount,state.teams)?(state.questionIndex===MAIN_QUESTIONS-1?'Hasil akhir':'Podium'):'Berikutnya';
+  $('#btnNext').textContent=state.questionIndex>=Math.min(MAIN_QUESTIONS,state.questionCount)-1?'Tentukan juara':'Berikutnya';
+  if(state.finalized){for(const button of board.querySelectorAll('button'))button.disabled=true;$('#btnRevealAll').disabled=true;$('#btnCloseAll').disabled=true;$('#btnStart').disabled=true;}
   $('#btnPeek').setAttribute('aria-pressed',String(peek));$('#btnSound').setAttribute('aria-pressed',String(sound));$('#multiplier').value=r.mult;$('#multiplier').disabled=r.locked||r.startedAt!==null||r.submissions.length>0;if(busy)busyControls(true);
 }
 function renderEditor(){
@@ -173,8 +174,11 @@ $('#btnResetTop').onclick=resetGame;
 $('#btnLockAll').onclick=()=>cmd({type:'lock'});$('#btnRevealAll').onclick=async()=>{if(await cmd({type:'revealAll'}))ding();};$('#btnCloseAll').onclick=()=>cmd({type:'hideAll'});
 async function navigate(offset){
   if(!state||busy||!$('#ov').hidden)return;
-  const result=offset>0?segmentEnd(state.questionIndex,state.questionCount,state.teams):null;
-  if(result){if(!state.locked){status('Selesaikan soal ini dulu: tunggu waktu habis atau kunci jawaban.');return;}showResults(result);return;}
+  if(offset>0&&state.questionIndex>=Math.min(MAIN_QUESTIONS,state.questionCount)-1){
+    if(!state.locked){status('Kunci jawaban dan buka poin sebelum menentukan juara.');return;}
+    if(await cmd({type:'settle'}))showResults(state.tournament.finished?'podium':'extra');
+    return;
+  }
   if(offset>0&&!state.started)return;
   const q=state.questions[state.questionIndex+offset];if(q)await cmd({type:'active',id:q.id,start:offset>0});
 }
@@ -246,21 +250,23 @@ let celebrationStop=null;
 const CROWN="<svg class=\"crown\" viewBox=\"0 0 64 44\" aria-hidden=\"true\"><path d=\"M4 38 L8 10 L22 24 L32 4 L42 24 L56 10 L60 38 Z\" fill=\"#ffd23f\" stroke=\"#b87900\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><rect x=\"4\" y=\"38\" width=\"56\" height=\"5\" rx=\"2\" fill=\"#e8a000\" stroke=\"#b87900\" stroke-width=\"2\"/><circle cx=\"8\" cy=\"9\" r=\"3.5\" fill=\"#ffffff\"/><circle cx=\"32\" cy=\"4\" r=\"3.5\" fill=\"#ffffff\"/><circle cx=\"56\" cy=\"9\" r=\"3.5\" fill=\"#ffffff\"/></svg>";
 function showResults(kind){
   overlayFocus=document.activeElement;overlayQuestion=state.cur;
-  const ordered=ranking(state.teams),ov=$('#ov');
+  const winners=state.tournament.winners;
+  const ordered=state.teams.map((t,i)=>({...t,i,rank:t.place||4,score:t.place?winners.find(w=>w.team===i).score:t.contestScore})),ov=$('#ov');
   $('#ovExtra').hidden=kind!=='extra';$('#ovPodium').hidden=kind!=='podium';
   ov.className='ov ov-mode-'+kind;ov.hidden=false;
   document.querySelector('#app > .top').setAttribute('inert','');$('#view-play').setAttribute('inert','');$('#view-edit').setAttribute('inert','');
   if(kind==='extra'){
-    const count=Math.min(EXTRA_QUESTIONS,state.questionCount-MAIN_QUESTIONS);
-    $('#ovExtraSub').textContent='Tiga besar belum memiliki skor berbeda dan positif. Dilanjutkan dengan '+count+' soal tambahan.';
-    $('#ovRank').innerHTML=ordered.map(x=>'<li style="--tc:var(--t'+(x.i+1)+')"><b>'+x.rank+'</b><span>'+esc(x.name)+'</span><em>'+x.score+(ordered.some(y=>y.i!==x.i&&y.score===x.score)?' / sama':'')+'</em></li>').join('');
-    $('#ovGo').focus();
+    const hasNext=state.questionIndex+1<state.questionCount;
+    $('#ovExtraSub').textContent=(winners.length?'Juara '+winners.map(w=>w.rank+': '+state.teams[w.team].name).join(', ')+' sudah tetap dan tidak ikut lagi. ':'Belum ada juara tunggal. ')+(hasNext?'Lanjut satu soal untuk perebutan juara '+(winners.length+1)+'.':'Soal tambahan habis. Tambahkan soal di tab Edit untuk melanjutkan perebutan juara '+(winners.length+1)+'.');
+    $('#ovRank').innerHTML=ordered.map(x=>'<li style="--tc:var(--t'+(x.i+1)+')"><b>'+(x.place?x.place:'–')+'</b><span>'+esc(x.name)+'</span><em>'+x.score+(x.place?' / juara tetap':' / perebutan')+'</em></li>').join('');
+    $('#ovGo').disabled=!hasNext;
+    (hasNext?$('#ovGo'):$('#ovBack')).focus();
   }else{
     $('#pod').innerHTML=[2,1,3].map(rank=>{
       const group=ordered.filter(t=>t.rank===rank),delay={1:2.5,2:1.3,3:.3}[rank];
       return '<div class="pc r'+rank+'">'+(rank===1&&group.length?CROWN:'')+'<div class="pwho" style="animation-delay:'+(delay+.5)+'s">'+(group.length?group.map(t=>'<div class="pw" style="--tc:var(--t'+(t.i+1)+')">'+esc(t.name)+'</div>').join('')+'<div class="ps">'+group[0].score+' poin</div>':'<div class="pw none">Belum ada</div>')+'</div><div class="pstep" style="animation-delay:'+delay+'s"><b>'+rank+'</b></div></div>';
     }).join('');
-    $('#ovOthers').textContent=ordered.filter(t=>t.rank>3).map(t=>t.rank+'. '+t.name+' / '+t.score).join(' / ');
+    $('#ovOthers').textContent=ordered.filter(t=>!t.place).map(t=>t.name).join(' / ');
     $('#ovClose').focus();
     [523,659,784,1047].forEach((f,i)=>tone(f,i*.14,.3,'triangle'));
     celebrationStop=celebrate();
@@ -283,12 +289,12 @@ function celebrate(){
 function handleOverlayKey(e){
   if(e.key==='Escape'){e.preventDefault();hideOverlay();return;}
   if(e.key!=='Tab')return;
-  const controls=Array.from($('#ov').querySelectorAll('button')).filter(b=>!b.closest('[hidden]'));
+  const controls=Array.from($('#ov').querySelectorAll('button')).filter(b=>!b.disabled&&!b.closest('[hidden]'));
   const index=controls.indexOf(document.activeElement),next=(index+(e.shiftKey?-1:1)+controls.length)%controls.length;
   e.preventDefault();controls[next]?.focus();
 }
 $('#ovGo').onclick=async()=>{
-  const q=state.questions[MAIN_QUESTIONS];
+  const q=state.questions[state.questionIndex+1];
   if(q&&state.cur===overlayQuestion&&await cmd({type:'active',id:q.id,start:true}))hideOverlay();
 };
 $('#ovBack').onclick=hideOverlay;$('#ovClose').onclick=hideOverlay;

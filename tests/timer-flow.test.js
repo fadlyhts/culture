@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createState,roundOf,command,submit,project,expireRounds} from '../src/game-engine.js';
-import {ranking,podiumReady,segmentEnd} from '../public/game-flow.js';
+import {ranking,resolvePlaces} from '../public/game-flow.js';
 import {validateBackup,GameRoom} from '../src/game-room.js';
 import {DatabaseSync} from 'node:sqlite';
 const execute=(s,c)=>command(s,{questionId:s.cur,generation:roundOf(s).generation,...c});
@@ -41,14 +41,12 @@ test('Legacy empty rounds wait for start and legacy scored rounds retain their s
   assert.equal(roundOf(s).startedAt,null);r.locked=true;delete r.startedAt;
   assert.equal(roundOf(s).startedAt,0);assert.equal(project(s,{role:'host'}).started,true);
 });
-test('Five main questions lead to a podium or two extra questions; ties share competition rank',()=>{
-  const teams=[100,80,60,40,20,0].map(score=>({name:String(score),score}));
-  assert.equal(podiumReady(teams),true);assert.equal(segmentEnd(4,7,teams),'podium');
-  teams[3].score=60;assert.equal(podiumReady(teams),false);assert.equal(segmentEnd(4,7,teams),'extra');
-  assert.equal(segmentEnd(5,7,teams),null);assert.equal(segmentEnd(6,7,teams),'podium');
-  assert.equal(segmentEnd(2,3,teams),'podium');
-  assert.deepEqual(ranking(teams).map(t=>t.rank),[1,2,3,3,5,6]);
-  assert.equal(segmentEnd(6,10,teams),'podium');
+test('Only distinct positive leaders receive places; ties continue to extra rounds',()=>{
+  assert.deepEqual(resolvePlaces([100,80,60,40,20,0]).map(w=>w.team),[0,1,2]);
+  assert.deepEqual(resolvePlaces([100,60,60,40,20,0]).map(w=>w.team),[0]);
+  assert.deepEqual(resolvePlaces([100,100,60,40,20,0]),[]);
+  assert.deepEqual(resolvePlaces([100,0,0,0,0,0]).map(w=>w.team),[0]);
+  assert.deepEqual(ranking([100,80,60,60,20,0].map(score=>({score}))).map(t=>t.rank),[1,2,3,3,5,6]);
 });
 test('Durable Object alarm survives object restart, persists lock and broadcasts without host',async t=>{
   let now=300000;t.mock.method(Date,'now',()=>now);

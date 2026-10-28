@@ -175,6 +175,8 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .alist li::before { content: counter(a); color: var(--tc); font-weight: 800; text-align: right; }
 .alist li.hit { color: var(--gold); }
 .alist li.hit b { font-weight: 800; }
+.alist .answer-result { display: block; margin-top: 4px; font: italic 400 0.72em/1.4 var(--font-body); color: var(--muted); letter-spacing: normal; text-transform: none; }
+.alist .answer-result + br { display: none; }
 .alist li.lost, .alist li.dup { opacity: 0.5; text-decoration: line-through; }
 .alist li.late { opacity: 0.4; font-style: italic; }
 .alock { font: 700 0.75em/1 var(--font-cond); color: var(--gold); margin-left: 0.6em; letter-spacing: 0.06em; }

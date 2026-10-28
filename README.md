@@ -61,6 +61,8 @@ Host and team sessions expire after 12 hours. Rotating a team's invitation inval
 
 ## Questions and backups
 
+The host has separate **Edit** (five main questions) and **Soal tambahan** tabs. In **Soal tambahan**, select **+ Soal tambahan baru**, enter its question, answers, aliases and points, then select **Simpan ke server**. Additional questions are appended and played in their displayed order. Imports/exports apply only to the selected tab. The extra-round result screen also has **Atur soal tambahan** to open this editor directly when more questions are needed.
+
 Question text format is one block per question, separated by a blank line:
 
 ~~~text

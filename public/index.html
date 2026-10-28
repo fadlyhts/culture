@@ -10,6 +10,7 @@
       <div class="tabs" role="tablist" aria-label="Mode">
         <button type="button" class="tab" role="tab" data-mode="play" aria-selected="true" aria-controls="view-play">Main</button>
         <button type="button" class="tab" role="tab" data-mode="edit" aria-selected="false" aria-controls="view-edit">Edit</button>
+        <button type="button" class="tab" role="tab" data-mode="extra" aria-selected="false" aria-controls="view-edit">Soal tambahan</button>
       </div>
     </div>
   </header>
@@ -59,13 +60,20 @@
   <section id="view-edit" role="tabpanel" aria-label="Edit soal" hidden>
     <div class="edit">
       <div class="panel">
-        <h2>Daftar soal</h2>
+        <h2 id="bankTitle">Soal utama</h2>
+        <p class="help" id="bankHelp">Atur 5 soal utama beserta jawaban dan poinnya.</p>
         <div class="qlist" id="qlist"></div>
         <button type="button" class="btn btn-gold" id="btnAddQ" style="width:100%">+ Soal baru</button>
+        <button type="button" class="btn" id="btnSaveBank" style="width:100%;margin-top:8px">Simpan ke server</button>
+        <p class="msg" id="bankMsg" role="status"></p>
       </div>
 
       <div class="stack">
-        <div class="panel">
+        <div class="panel" id="emptyQuestionEditor" hidden>
+          <h2>Belum ada soal tambahan</h2>
+          <p class="help">Klik + Soal tambahan baru, isi pertanyaan, jawaban benar, sinonim, dan poin; lalu Simpan ke server. Soal ini digunakan berurutan saat perebutan juara.</p>
+        </div>
+        <div class="panel" id="questionEditor">
           <h2 id="editMeta">Soal</h2>
           <label class="label" for="eq">Pertanyaan</label>
           <textarea class="field" id="eq" rows="2" maxlength="220" placeholder="Contoh: Sebutkan hewan yang sering dijadikan peliharaan!"></textarea>
@@ -90,14 +98,14 @@
         </div>
 
         <details class="panel" id="io">
-          <summary>Tempel atau salin banyak soal sekaligus</summary>
+          <summary id="ioTitle">Impor/ekspor soal utama</summary>
           <p class="help">Satu soal per blok, dipisah baris kosong. Baris pertama adalah pertanyaan, baris berikutnya berbentuk <b>jawaban | poin | sinonim1, sinonim2</b> (sinonim boleh dikosongkan). Gunakan ini untuk memindahkan soal ke perangkat lain atau menyimpannya di dokumen.</p>
           <textarea class="field" id="ioText" aria-label="Teks soal" spellcheck="false"></textarea>
           <div class="row">
             <button type="button" class="btn" id="ioReload">Muat ulang dari soal</button>
             <button type="button" class="btn" id="ioCopy">Salin teks</button>
             <button type="button" class="btn" id="ioAppend">Tambahkan sebagai soal baru</button>
-            <button type="button" class="btn btn-ghost" id="ioReplace">Ganti semua soal</button>
+            <button type="button" class="btn btn-ghost" id="ioReplace">Ganti soal pada menu ini</button>
           </div>
           <p class="msg" id="ioMsg" aria-live="polite"></p>
         </details>
@@ -131,7 +139,7 @@
       <h2 class="ov-title">Babak tambahan</h2>
       <p class="ov-sub" id="ovExtraSub"></p>
       <ol class="ov-rank" id="ovRank"></ol>
-      <div class="ov-actions"><button type="button" class="btn btn-gold" id="ovGo">Mulai babak tambahan</button><button type="button" class="btn btn-ghost" id="ovBack">Kembali ke soal</button></div>
+      <div class="ov-actions"><button type="button" class="btn btn-gold" id="ovGo">Mulai babak tambahan</button><button type="button" class="btn" id="ovEditExtra">Atur soal tambahan</button><button type="button" class="btn btn-ghost" id="ovBack">Kembali ke soal</button></div>
     </section>
     <section class="ov-podium" id="ovPodium" hidden>
       <h2 class="ov-win">Selamat kepada para juara!</h2>

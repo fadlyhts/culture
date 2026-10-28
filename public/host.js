@@ -1,5 +1,6 @@
 import {MAIN_QUESTIONS} from './game-flow.js';
 import {shortCode} from './invite-code.js';
+import {bankEntries,insertQuestion,replaceBank} from './question-bank.js';
 import {
    $, escapeHTML as esc, api, LiveGame, copy
 }
@@ -10,7 +11,7 @@ let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTi
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
 function busyControls(value){
   $('#game').setAttribute('aria-busy',String(value));
-  for(const control of document.querySelectorAll('#board button, #btnStart, #btnResetTop, #ovGo, #btnLockAll, #btnRevealAll, #btnCloseAll, #btnPrev, #btnNext, #btnSave, #btnPlayThis, #btnResetGame, #btnSample, #btnStrike, #btnClearStrikes, [data-rotate], #teams input, #multiplier')){
+  for(const control of document.querySelectorAll('#board button, #btnStart, #btnResetTop, #ovGo, #btnLockAll, #btnRevealAll, #btnCloseAll, #btnPrev, #btnNext, #btnSave, #btnSaveBank, #btnAddQ, #btnPlayThis, #btnResetGame, #btnSample, #btnStrike, #btnClearStrikes, [data-rotate], #teams input, #multiplier')){
     if(value){if(control.dataset.busyDisabled===undefined)control.dataset.busyDisabled=String(control.disabled);control.disabled=true;}
     else {control.disabled=control.dataset.busyDisabled==='true';delete control.dataset.busyDisabled;}
   }
@@ -18,7 +19,9 @@ function busyControls(value){
 const uid=()=>crypto.randomUUID();
 const run=()=>state.run[state.cur];
 const active=()=>state.questions.find(q=>q.id===state.cur);
-const edited=()=>draft.find(q=>q.id===editId)||draft[0];
+const editorBank=()=>mode==='extra'?'extra':'main';
+const editorEntries=()=>bankEntries(draft,editorBank());
+const edited=()=>editorEntries().find(entry=>entry.question.id===editId)?.question||editorEntries()[0]?.question;
 const status=(text)=>{
   $('#ansStatus').textContent=text;
 };
@@ -69,7 +72,7 @@ function receive(next) {
   }
     setMode(mode);
   renderPlay();
-  if(mode==='edit'){
+  if(mode!=='play'){
     if(!dirty&&JSON.stringify(draft)!==editorQuestions)renderEditor();
     else renderLinks();
   }
@@ -89,6 +92,7 @@ async function cmd(command) {
     status(e.message);
     $('#gameMsg').textContent=e.message;
     $('#saveMsg').textContent=e.message;
+    $('#bankMsg').textContent=e.message;
     return false;
   }
   finally{
@@ -99,7 +103,8 @@ function setMode(value){
   mode=value;
   document.body.classList.toggle('mode-play',value==='play'&&!!state);
   $('#view-play').hidden=value!=='play';
-  $('#view-edit').hidden=value!=='edit';
+  $('#view-edit').hidden=value==='play';
+  $('#view-edit').setAttribute('aria-label',value==='extra'?'Pengaturan soal tambahan':'Edit soal utama');
   document.querySelectorAll('[data-mode]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.mode===value)));
 }
 function renderPlay(){
@@ -138,14 +143,25 @@ function renderPlay(){
   $('#btnPeek').setAttribute('aria-pressed',String(peek));$('#btnSound').setAttribute('aria-pressed',String(sound));$('#multiplier').value=r.mult;$('#multiplier').disabled=r.locked||r.startedAt!==null||r.submissions.length>0;if(busy)busyControls(true);
 }
 function renderEditor(){
-  const q=edited();if(!q)return;editId=q.id;
-  $('#qlist').innerHTML=draft.map((x,i)=>'<button class="qitem '+(x.id===q.id?'is-sel':'')+'" data-edit="'+x.id+'"><span class="qi-n">'+(i+1)+'</span><span class="qi-t">'+esc(x.q||'(Soal baru)')+'</span><span class="qi-c">'+x.a.length+' jwb</span></button>').join('');
-  $('#editMeta').textContent='Soal '+(draft.indexOf(q)+1)+' dari '+draft.length;
+  const entries=editorEntries(),extra=editorBank()==='extra',q=edited();
+  $('#bankTitle').textContent=extra?'Soal tambahan':'Soal utama';
+  $('#bankHelp').textContent=extra?'Siapkan pertanyaan, jawaban, sinonim, dan poin untuk perebutan juara. Soal dimainkan satu per satu sesuai urutan.':'Atur 5 soal utama beserta jawaban dan poinnya.';
+  $('#bankMsg').textContent=(extra?entries.length+' soal tambahan disiapkan.':entries.length+' dari 5 soal utama.')+(dirty?' Ada perubahan belum disimpan.':' Tersimpan di server.');
+  $('#btnAddQ').textContent=extra?'+ Soal tambahan baru':'+ Soal utama baru';
+  $('#btnAddQ').disabled=busy||(!extra&&draft.length>=MAIN_QUESTIONS)||(extra&&draft.length<MAIN_QUESTIONS);
+  $('#ioTitle').textContent=extra?'Impor/ekspor soal tambahan':'Impor/ekspor soal utama';
+  $('#qlist').innerHTML=entries.map(({question:x,number})=>'<button class="qitem '+(x.id===q?.id?'is-sel':'')+'" data-edit="'+x.id+'"><span class="qi-n">'+number+'</span><span class="qi-t">'+esc(x.q||'(Soal baru)')+'</span><span class="qi-c">'+x.a.length+' jwb</span></button>').join('');
+  $('#questionEditor').hidden=!q;$('#emptyQuestionEditor').hidden=!!q;
+  renderLinks();editorQuestions=JSON.stringify(draft);
+  if(!q)return;
+  editId=q.id;
+  $('#editMeta').textContent=(extra?'Soal tambahan ':'Soal utama ')+entries.find(entry=>entry.question.id===q.id).number+' dari '+entries.length;
   $('#eq').value=q.q;
   $('#arows').innerHTML=q.a.map((a,i)=>'<div class="arow" data-id="'+a.id+'"><span class="an">'+(i+1)+'</span><input class="field a-t" maxlength="100" aria-label="Jawaban '+(i+1)+'" value="'+esc(a.t)+'"><input class="field a-al" maxlength="300" aria-label="Sinonim '+(i+1)+'" placeholder="Sinonim, dipisah koma" value="'+esc(a.al)+'"><input class="field a-p" type="number" min="0" max="999" aria-label="Poin '+(i+1)+'" value="'+a.p+'"><button class="icon-btn a-del" aria-label="Hapus jawaban '+(i+1)+'">×</button></div>').join('');
-  $('#btnAddA').disabled=q.a.length>=10;$('#btnUp').disabled=draft.indexOf(q)===0;$('#btnDown').disabled=draft.indexOf(q)===draft.length-1;$('#btnDelQ').disabled=draft.length===1;
+  $('#btnAddA').disabled=q.a.length>=10;$('#btnUp').disabled=state.tournament.resolved.length>0||entries[0].question.id===q.id;$('#btnDown').disabled=state.tournament.resolved.length>0||entries[entries.length-1].question.id===q.id;
+  $('#btnDelQ').disabled=state.tournament.resolved.length>0||(!extra&&(draft.length===1||draft.length>MAIN_QUESTIONS));
+  $('#btnDup').disabled=!extra&&draft.length>=MAIN_QUESTIONS;
   $('#saveMsg').textContent=dirty?'Ada perubahan belum disimpan.':'Soal tersimpan di server.';
-  renderLinks();editorQuestions=JSON.stringify(draft);
 }
 const slugs=['teh','tebu','kopi','kakao','tembakau','hore'];
 function renderLinks(){
@@ -158,7 +174,7 @@ function renderLinks(){
     return '<div class="invite-card"><img class="invite-qr" src="'+qr+'" width="180" height="180" alt="QR undangan '+esc(t.name)+'" loading="lazy"><div class="invite-details"><strong>'+esc(t.name)+'</strong><input class="field tl-in" readonly aria-label="Tautan '+esc(t.name)+'" value="'+esc(url)+'"><div class="row"><button class="btn" data-copy="'+i+'">Salin tautan</button><a class="btn" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Buka</a><a class="btn" href="'+qr+'" download="qr-'+slugs[i]+'.png">Unduh QR</a><button class="btn btn-ghost" data-rotate="'+i+'">Ganti tautan</button></div></div></div>';
   }).join('');
 }
-function changed(){dirty=true;$('#saveMsg').textContent='Ada perubahan belum disimpan.';}
+function changed(){dirty=true;$('#saveMsg').textContent='Ada perubahan belum disimpan.';$('#bankMsg').textContent='Ada perubahan belum disimpan. Klik Simpan ke server.';}
 function toText(qs){return qs.map(q=>[q.q,...q.a.map(a=>a.t+' | '+a.p+(a.al?' | '+a.al:''))].join('\n')).join('\n\n');}
 function parseText(text){return text.trim().replace(/\r/g,'').split(/\n[ \t]*\n/).map(block=>{const lines=block.split('\n').map(x=>x.trim()).filter(Boolean);return{id:uid(),q:lines.shift()||'',a:lines.map(line=>{const [t,p,al='']=line.split('|').map(x=>x.trim());return{id:uid(),t,p:Number(p),al};})};});}
 async function save(){const ok=await cmd({type:'questions',questions:draft});if(ok){dirty=false;draft=structuredClone(state.questions);renderEditor();}return ok;}
@@ -188,34 +204,36 @@ $('#teams').addEventListener('change',e=>{if(e.target.matches('[data-team]'))cmd
 $('#view-edit').addEventListener('input',e=>{const q=edited(),input=e.target;if(input.id==='eq')q.q=input.value;else if(input.closest('.arow')){const a=q.a.find(a=>a.id===input.closest('.arow').dataset.id);if(input.classList.contains('a-t'))a.t=input.value;else if(input.classList.contains('a-al'))a.al=input.value;else if(input.classList.contains('a-p'))a.p=Number(input.value);else return;}else return;changed();});
 $('#view-edit').addEventListener('click',async e=>{
   const button=e.target.closest('button');if(!button)return;const q=edited(),index=draft.indexOf(q);
+  try{
   if(button.dataset.edit){editId=button.dataset.edit;renderEditor();return;}
   if(button.dataset.copy){const input=button.closest('.invite-card').querySelector('.tl-in');await copy(input.value,input,$('#tlMsg'));return;}
   if(button.dataset.rotate!==undefined){if(confirm('Ganti tautan tim dan putus sesi tim ini?'))await cmd({type:'rotateInvite',team:Number(button.dataset.rotate)});return;}
   if(button.classList.contains('a-del')){q.a=q.a.filter(a=>a.id!==button.closest('.arow').dataset.id);changed();renderEditor();return;}
   switch(button.id){
-    case 'btnSave':await save();break;
-    case 'btnAddQ':{const n={id:uid(),q:'',a:[{id:uid(),t:'',p:0,al:''}]};draft.splice(index+1,0,n);editId=n.id;changed();renderEditor();$('#eq').focus();break;}
+    case 'btnSave':case 'btnSaveBank':await save();break;
+    case 'btnAddQ':{const n={id:uid(),q:'',a:[{id:uid(),t:'',p:0,al:''}]};draft=insertQuestion(draft,editorBank(),n,editorBank()==='extra'?undefined:q?.id);editId=n.id;changed();renderEditor();$('#eq').focus();break;}
     case 'btnAddA':if(q.a.length<10){q.a.push({id:uid(),t:'',p:0,al:''});changed();renderEditor();$('#arows .arow:last-child .a-t').focus();}break;
     case 'btnSortA':q.a.sort((a,b)=>b.p-a.p);changed();renderEditor();break;
     case 'btnPlayThis':if(requireSaved()&&await cmd({type:'active',id:q.id}))setMode('play');break;
-    case 'btnUp':case 'btnDown':{const other=index+(button.id==='btnUp'?-1:1);if(other>=0&&other<draft.length){draft.splice(index,1);draft.splice(other,0,q);changed();renderEditor();}break;}
-    case 'btnDup':{const n={...q,id:uid(),a:q.a.map(a=>({...a,id:uid()}))};draft.splice(index+1,0,n);editId=n.id;changed();renderEditor();break;}
-    case 'btnDelQ':if(draft.length>1&&confirm('Hapus soal ini?')){draft.splice(index,1);editId=draft[Math.min(index,draft.length-1)].id;changed();renderEditor();}break;
-    case 'ioReload':$('#ioText').value=toText(draft);break;
+    case 'btnUp':case 'btnDown':{const other=index+(button.id==='btnUp'?-1:1);if(editorEntries().some(entry=>entry.index===other)){draft.splice(index,1);draft.splice(other,0,q);changed();renderEditor();}break;}
+    case 'btnDup':{const n={...q,id:uid(),a:q.a.map(a=>({...a,id:uid()}))};draft=insertQuestion(draft,editorBank(),n,editorBank()==='extra'?undefined:q.id);editId=n.id;changed();renderEditor();break;}
+    case 'btnDelQ':if((editorBank()==='extra'||draft.length<=MAIN_QUESTIONS)&&draft.length>1&&confirm('Hapus soal ini?')){draft.splice(index,1);editId=null;changed();renderEditor();}break;
+    case 'ioReload':$('#ioText').value=toText(editorEntries().map(entry=>entry.question));break;
     case 'ioCopy':await copy($('#ioText').value,$('#ioText'),$('#ioMsg'));break;
-    case 'ioAppend':draft.push(...parseText($('#ioText').value));changed();renderEditor();$('#ioMsg').textContent='Soal ditambahkan ke draf. Klik Simpan ke server.';break;
-    case 'ioReplace':if(confirm('Ganti draf semua soal? Soal yang sudah dimainkan harus direset dahulu.')){draft=parseText($('#ioText').value);editId=draft[0]?.id;changed();renderEditor();}break;
+    case 'ioAppend':{const added=parseText($('#ioText').value);let next=draft;for(const question of added)next=insertQuestion(next,editorBank(),question);draft=next;editId=added[0]?.id;changed();renderEditor();$('#ioMsg').textContent='Soal ditambahkan ke menu ini. Klik Simpan ke server.';break;}
+    case 'ioReplace':if(confirm('Ganti draf soal pada menu ini? Soal yang sudah dimainkan harus direset dahulu.')){draft=replaceBank(draft,editorBank(),parseText($('#ioText').value));editId=null;changed();renderEditor();}break;
     case 'btnResetGame':await resetGame();break;
     case 'btnSample':if(confirm('Kembalikan soal contoh dan reset permainan?')){dirty=false;await cmd({type:'sample'});}break;
     case 'btnStrike':if(await cmd({type:'strike'})){tone(110,0,.7,'sawtooth');const flash=$('#xflash');flash.textContent='×'.repeat(run().strikes);flash.style.fontSize='20vw';flash.classList.add('show');setTimeout(()=>flash.classList.remove('show'),1100);}break;
     case 'btnClearStrikes':await cmd({type:'clearStrikes'});break;
     case 'btnBackup':{try{const backup=await api('/api/host/backup');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([JSON.stringify(backup)],{type:'application/json'}));link.download='family100-backup-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}catch(e){$('#gameMsg').textContent=e.message;}break;}
   }
+  }catch(error){$('#bankMsg').textContent=error.message;$('#ioMsg').textContent=error.message;}
 });
-$('#io').addEventListener('toggle',()=>{if($('#io').open)$('#ioText').value=toText(draft);});
+$('#io').addEventListener('toggle',()=>{if($('#io').open)$('#ioText').value=toText(editorEntries().map(entry=>entry.question));});
 $('#multiplier').onchange=e=>cmd({type:'multiplier',value:Number(e.target.value)});
 $('#backupFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>2000000)throw new Error('Cadangan terlalu besar.');const data=JSON.parse(await file.text());if(confirm('Pulihkan cadangan dan ganti permainan saat ini?')){const result=await api('/api/host/restore',{...data,confirm:true});dirty=false;receive(result.state);$('#gameMsg').textContent='Cadangan dipulihkan. Tim perlu masuk kembali.';}}catch(error){$('#gameMsg').textContent=error.message;}e.target.value='';};
-document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{setMode(button.dataset.mode);if(mode==='edit')renderEditor();});
+document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{setMode(button.dataset.mode);if(mode!=='play'){renderEditor();$('#ioText').value=toText(editorEntries().map(entry=>entry.question));}});
 document.addEventListener('keydown',e=>{if(!$('#ov').hidden){handleOverlayKey(e);return;}if(!state||mode!=='play'||e.target.matches('input,textarea,select')||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key==='ArrowLeft'){e.preventDefault();navigate(-1);}else if(e.key==='ArrowRight'){e.preventDefault();navigate(1);}else if(/^[0-9]$/.test(e.key)){const index=e.key==='0'?9:Number(e.key)-1;$('#board').querySelectorAll('button')[index]?.click();}});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 function renderTimer(){
@@ -298,5 +316,6 @@ $('#ovGo').onclick=async()=>{
   if(q&&state.cur===overlayQuestion&&await cmd({type:'active',id:q.id,start:true}))hideOverlay();
 };
 $('#ovBack').onclick=hideOverlay;$('#ovClose').onclick=hideOverlay;
+$('#ovEditExtra').onclick=()=>{hideOverlay();setMode('extra');renderEditor();$('#btnAddQ').focus();};
 const track=$('#mqTrack');if(track){const duplicate=track.cloneNode(true);duplicate.removeAttribute('id');duplicate.setAttribute('aria-hidden','true');for(const logo of Array.from(duplicate.children))track.appendChild(logo);}
 await live.start();

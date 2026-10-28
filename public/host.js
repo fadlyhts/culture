@@ -169,7 +169,6 @@ function renderEditor(){
   $('#btnDup').disabled=!extra&&draft.length>=MAIN_QUESTIONS;
   $('#saveMsg').textContent=dirty?'Ada perubahan belum disimpan.':'Soal tersimpan di server.';
 }
-const slugs=['teh','tebu','kopi','kakao','tembakau','hore'];
 function renderLinks(){
   const key=JSON.stringify(state.invitations.map((inv,i)=>[inv.token,inv.version,state.teams[i].name]));
   if(key===linksKey)return;
@@ -177,7 +176,8 @@ function renderLinks(){
   $('#teamLinks').innerHTML=state.teams.map((t,i)=>{
     const url=location.origin+'/j/'+shortCode(state.invitations[i].token);
     const qr='/api/host/qr?team='+i+'&v='+state.invitations[i].version;
-    return '<div class="invite-card"><img class="invite-qr" src="'+qr+'" width="180" height="180" alt="QR undangan '+esc(t.name)+'" loading="lazy"><div class="invite-details"><strong>'+esc(t.name)+'</strong><input class="field tl-in" readonly aria-label="Tautan '+esc(t.name)+'" value="'+esc(url)+'"><div class="row"><button class="btn" data-copy="'+i+'">Salin tautan</button><a class="btn" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Buka</a><a class="btn" href="'+qr+'" download="qr-'+slugs[i]+'.png">Unduh QR</a><button class="btn btn-ghost" data-rotate="'+i+'">Ganti tautan</button></div></div></div>';
+    const filename='qr-'+(t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'team-'+(i+1))+'.png';
+    return '<div class="invite-card"><img class="invite-qr" src="'+qr+'" width="180" height="180" alt="QR undangan '+esc(t.name)+'" loading="lazy"><div class="invite-details"><strong>'+esc(t.name)+'</strong><input class="field tl-in" readonly aria-label="Tautan '+esc(t.name)+'" value="'+esc(url)+'"><div class="row"><button class="btn" data-copy="'+i+'">Salin tautan</button><a class="btn" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Buka</a><a class="btn" href="'+qr+'" download="'+filename+'">Unduh QR</a><button class="btn btn-ghost" data-rotate="'+i+'">Ganti tautan</button></div></div></div>';
   }).join('');
 }
 function changed(){dirty=true;$('#saveMsg').textContent='Ada perubahan belum disimpan.';$('#bankMsg').textContent='Ada perubahan belum disimpan. Klik Simpan ke server.';}

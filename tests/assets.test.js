@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
+import {hostPage} from '../public/host-pages.js';
 
 const assets = new URL('../public/', import.meta.url);
 const slugs = ['teh', 'tebu', 'kopi', 'kakao', 'tembakau', 'hore'];
@@ -10,6 +11,7 @@ test('Host and six team pages reference existing same-origin assets', async () =
     const html = await readFile(new URL(page, assets), 'utf8');
     assert.match(html, /lang="id"/);
     for (const match of html.matchAll(new RegExp('(?:src|href)="(/[^"#]*)"', 'g'))) {
+      if(['edit','extra'].includes(hostPage(match[1])))continue;
       await access(new URL('.' + match[1], assets));
     }
     assert.doesNotMatch(html, /claude\.ai|window\.claude/);

@@ -1,14 +1,21 @@
 import {MAIN_QUESTIONS} from './game-flow.js';
 import {shortCode} from './invite-code.js';
 import {bankEntries,insertQuestion,replaceBank} from './question-bank.js';
+import {hostPage} from './host-pages.js';
 import {
    $, escapeHTML as esc, api, LiveGame, copy
 }
  from './client.js';
-let state=null, draft=[], editId=null, dirty=false, mode='play', peek=false, busy=false;
+const pageMode=hostPage(location.pathname)||'play',settingsPage=pageMode!=='play';
+let state=null, draft=[], editId=null, dirty=false, mode=pageMode, peek=false, busy=false;
 let sound=true, audioContext, editorQuestions='', linksKey='';
 let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTick=-1;
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
+document.title=settingsPage?(pageMode==='extra'?'Pengaturan soal tambahan':'Pengaturan soal utama')+' / Family 100':'Kuis Family 100 DATN';
+for(const link of document.querySelectorAll('[data-page]')){
+  if(settingsPage&&link.dataset.page!=='play'||!settingsPage&&link.dataset.page==='play')link.target='_self';
+}
+for(const id of ['btnSound','btnFull','btnResetTop','btnPlayThis'])if(settingsPage)$('#'+id).hidden=true;
 function busyControls(value){
   $('#game').setAttribute('aria-busy',String(value));
   for(const control of document.querySelectorAll('#board button, #btnStart, #btnResetTop, #ovGo, #btnLockAll, #btnRevealAll, #btnCloseAll, #btnPrev, #btnNext, #btnSave, #btnSaveBank, #btnAddQ, #btnPlayThis, #btnResetGame, #btnSample, #btnStrike, #btnClearStrikes, [data-rotate], #teams input, #multiplier')){
@@ -70,8 +77,8 @@ function receive(next) {
     draft=structuredClone(state.questions);
     if(!draft.some(q=>q.id===editId))editId=state.cur;
   }
-    setMode(mode);
-  renderPlay();
+    setMode();
+  if(!settingsPage)renderPlay();
   if(mode!=='play'){
     if(!dirty&&JSON.stringify(draft)!==editorQuestions)renderEditor();
     else renderLinks();
@@ -96,16 +103,16 @@ async function cmd(command) {
     return false;
   }
   finally{
-    busy=false;busyControls(false);if(state)renderPlay();
+    busy=false;busyControls(false);if(state&&!settingsPage)renderPlay();
   }
 }
-function setMode(value){
-  mode=value;
+function setMode(){
+  const value=pageMode;mode=value;
   document.body.classList.toggle('mode-play',value==='play'&&!!state);
   $('#view-play').hidden=value!=='play';
   $('#view-edit').hidden=value==='play';
   $('#view-edit').setAttribute('aria-label',value==='extra'?'Pengaturan soal tambahan':'Edit soal utama');
-  document.querySelectorAll('[data-mode]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.mode===value)));
+  document.querySelectorAll('[data-page]').forEach(link=>{if(link.dataset.page===value)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
 }
 function renderPlay(){
     const q=active(),r=run(),list=q.a,gains=Array(6).fill(0);
@@ -214,7 +221,6 @@ $('#view-edit').addEventListener('click',async e=>{
     case 'btnAddQ':{const n={id:uid(),q:'',a:[{id:uid(),t:'',p:0,al:''}]};draft=insertQuestion(draft,editorBank(),n,editorBank()==='extra'?undefined:q?.id);editId=n.id;changed();renderEditor();$('#eq').focus();break;}
     case 'btnAddA':if(q.a.length<10){q.a.push({id:uid(),t:'',p:0,al:''});changed();renderEditor();$('#arows .arow:last-child .a-t').focus();}break;
     case 'btnSortA':q.a.sort((a,b)=>b.p-a.p);changed();renderEditor();break;
-    case 'btnPlayThis':if(requireSaved()&&await cmd({type:'active',id:q.id}))setMode('play');break;
     case 'btnUp':case 'btnDown':{const other=index+(button.id==='btnUp'?-1:1);if(editorEntries().some(entry=>entry.index===other)){draft.splice(index,1);draft.splice(other,0,q);changed();renderEditor();}break;}
     case 'btnDup':{const n={...q,id:uid(),a:q.a.map(a=>({...a,id:uid()}))};draft=insertQuestion(draft,editorBank(),n,editorBank()==='extra'?undefined:q.id);editId=n.id;changed();renderEditor();break;}
     case 'btnDelQ':if((editorBank()==='extra'||draft.length<=MAIN_QUESTIONS)&&draft.length>1&&confirm('Hapus soal ini?')){draft.splice(index,1);editId=null;changed();renderEditor();}break;
@@ -233,11 +239,10 @@ $('#view-edit').addEventListener('click',async e=>{
 $('#io').addEventListener('toggle',()=>{if($('#io').open)$('#ioText').value=toText(editorEntries().map(entry=>entry.question));});
 $('#multiplier').onchange=e=>cmd({type:'multiplier',value:Number(e.target.value)});
 $('#backupFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>2000000)throw new Error('Cadangan terlalu besar.');const data=JSON.parse(await file.text());if(confirm('Pulihkan cadangan dan ganti permainan saat ini?')){const result=await api('/api/host/restore',{...data,confirm:true});dirty=false;receive(result.state);$('#gameMsg').textContent='Cadangan dipulihkan. Tim perlu masuk kembali.';}}catch(error){$('#gameMsg').textContent=error.message;}e.target.value='';};
-document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{setMode(button.dataset.mode);if(mode!=='play'){renderEditor();$('#ioText').value=toText(editorEntries().map(entry=>entry.question));}});
 document.addEventListener('keydown',e=>{if(!$('#ov').hidden){handleOverlayKey(e);return;}if(!state||mode!=='play'||e.target.matches('input,textarea,select')||e.ctrlKey||e.metaKey||e.altKey)return;if(e.key==='ArrowLeft'){e.preventDefault();navigate(-1);}else if(e.key==='ArrowRight'){e.preventDefault();navigate(1);}else if(/^[0-9]$/.test(e.key)){const index=e.key==='0'?9:Number(e.key)-1;$('#board').querySelectorAll('button')[index]?.click();}});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 function renderTimer(){
-  if(!state)return;
+  if(!state||settingsPage)return;
   const left=state.deadline?Math.max(0,(state.deadline-Date.now()-serverOffset)/1000):30;
   const done=state.locked||(state.deadline&&left<=0),sec=done?0:Math.ceil(left);
   const phase=done?'done':state.deadline?'run':'idle';
@@ -307,7 +312,7 @@ function celebrate(){
 function handleOverlayKey(e){
   if(e.key==='Escape'){e.preventDefault();hideOverlay();return;}
   if(e.key!=='Tab')return;
-  const controls=Array.from($('#ov').querySelectorAll('button')).filter(b=>!b.disabled&&!b.closest('[hidden]'));
+  const controls=Array.from($('#ov').querySelectorAll('button, a[href]')).filter(b=>!b.disabled&&!b.closest('[hidden]'));
   const index=controls.indexOf(document.activeElement),next=(index+(e.shiftKey?-1:1)+controls.length)%controls.length;
   e.preventDefault();controls[next]?.focus();
 }
@@ -316,6 +321,5 @@ $('#ovGo').onclick=async()=>{
   if(q&&state.cur===overlayQuestion&&await cmd({type:'active',id:q.id,start:true}))hideOverlay();
 };
 $('#ovBack').onclick=hideOverlay;$('#ovClose').onclick=hideOverlay;
-$('#ovEditExtra').onclick=()=>{hideOverlay();setMode('extra');renderEditor();$('#btnAddQ').focus();};
 const track=$('#mqTrack');if(track){const duplicate=track.cloneNode(true);duplicate.removeAttribute('id');duplicate.setAttribute('aria-hidden','true');for(const logo of Array.from(duplicate.children))track.appendChild(logo);}
 await live.start();

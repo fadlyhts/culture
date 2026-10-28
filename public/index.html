@@ -7,11 +7,11 @@
       <button type="button" class="chip" id="btnSound" aria-pressed="true">Suara</button>
       <button type="button" class="chip" id="btnFull" title="Layar penuh">Penuh</button>
       <button type="button" class="chip" id="btnResetTop" title="Reset skor dan kunci, kembali ke soal 1">Reset</button>
-      <div class="tabs" role="tablist" aria-label="Mode">
-        <button type="button" class="tab" role="tab" data-mode="play" aria-selected="true" aria-controls="view-play">Main</button>
-        <button type="button" class="tab" role="tab" data-mode="edit" aria-selected="false" aria-controls="view-edit">Edit</button>
-        <button type="button" class="tab" role="tab" data-mode="extra" aria-selected="false" aria-controls="view-edit">Soal tambahan</button>
-      </div>
+      <nav class="tabs" aria-label="Halaman host">
+        <a class="tab" data-page="play" href="/" target="_blank" rel="noopener">Main</a>
+        <a class="tab" data-page="edit" href="/settings/soal" target="quiz-settings" rel="noopener">Soal utama ↗</a>
+        <a class="tab" data-page="extra" href="/settings/tambahan" target="quiz-settings" rel="noopener">Soal tambahan ↗</a>
+      </nav>
     </div>
   </header>
 
@@ -139,7 +139,7 @@
       <h2 class="ov-title">Babak tambahan</h2>
       <p class="ov-sub" id="ovExtraSub"></p>
       <ol class="ov-rank" id="ovRank"></ol>
-      <div class="ov-actions"><button type="button" class="btn btn-gold" id="ovGo">Mulai babak tambahan</button><button type="button" class="btn" id="ovEditExtra">Atur soal tambahan</button><button type="button" class="btn btn-ghost" id="ovBack">Kembali ke soal</button></div>
+      <div class="ov-actions"><button type="button" class="btn btn-gold" id="ovGo">Mulai babak tambahan</button><a class="btn" href="/settings/tambahan" target="quiz-settings" rel="noopener">Atur soal tambahan ↗</a><button type="button" class="btn btn-ghost" id="ovBack">Kembali ke soal</button></div>
     </section>
     <section class="ov-podium" id="ovPodium" hidden>
       <h2 class="ov-win">Selamat kepada para juara!</h2>

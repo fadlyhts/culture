@@ -14,7 +14,7 @@ let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTi
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
 const audio=new GameAudio({enabled:sound,intro:!settingsPage,onChange:updateSoundUI});
 function updateSoundUI(){
-  $('#btnSound').textContent=sound?'Suara: ON':'Suara: OFF';
+  $('#btnSound').textContent=!sound?'Suara: OFF':audio.unlocked?'Suara: ON':'Suara: menunggu izin';
   $('#btnSound').setAttribute('aria-pressed',String(sound));
   $('#btnEnableAudio').hidden=settingsPage||!sound||audio.unlocked;
 }
@@ -26,18 +26,21 @@ function syncGameMusic(){
 }
 async function unlockAudio(event){
   if(settingsPage||!sound||event?.target?.closest('#btnSound'))return;
-  await audio.unlock();updateSoundUI();syncGameMusic();
+  if(!audio.unlocked)await audio.unlock();
+  updateSoundUI();syncGameMusic();
 }
 if(!settingsPage){
   document.addEventListener('pointerdown',unlockAudio);
   document.addEventListener('keydown',unlockAudio);
   $('#btnEnableAudio').onclick=()=>unlockAudio();
   window.addEventListener('pagehide',()=>audio.stop());
-  window.addEventListener('pageshow',syncGameMusic);
+  window.addEventListener('pageshow',()=>{syncGameMusic();unlockAudio();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)unlockAudio();});
 }
 document.addEventListener('click',async()=>{
   if(!sound)return;
-  await audio.unlock();audio.play('click');
+  if(!audio.unlocked)await audio.unlock();
+  audio.play('click');
 });
 window.addEventListener('storage',event=>{
   if(event.key!=='family100.sound')return;
@@ -340,4 +343,5 @@ $('#ovGo').onclick=async()=>{
 };
 $('#ovBack').onclick=hideOverlay;$('#ovClose').onclick=hideOverlay;
 const track=$('#mqTrack');if(track){const duplicate=track.cloneNode(true);duplicate.removeAttribute('id');duplicate.setAttribute('aria-hidden','true');for(const logo of Array.from(duplicate.children))track.appendChild(logo);}
+if(!settingsPage){syncGameMusic();unlockAudio();}
 await live.start();

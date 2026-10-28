@@ -4,7 +4,7 @@ import {GameAudio,revealCue} from '../public/game-audio.js';
 
 function harness(options={}){
   const notes=[],timers=[];
-  const param=()=>({value:0,setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
+  const param=()=>({value:0,events:[],cancelScheduledValues(at){this.events.push(['cancel',at]);},setValueAtTime(value,at){this.events.push(['set',value,at]);},linearRampToValueAtTime(value,at){this.events.push(['ramp',value,at]);},exponentialRampToValueAtTime(){}});
   const context={state:'suspended',currentTime:0,destination:{},
     async resume(){this.state='running';},
     createGain(){return {gain:param(),connect(){},disconnect(){}};},
@@ -107,5 +107,28 @@ test('A new reveal effect replaces the old effect without stopping background mu
   h.audio.play('incorrect');
   assert.equal([...h.audio.voices].filter(voice=>voice.channel==='effect').length,2);
   assert.ok([...h.audio.voices].some(voice=>voice.channel==='music'));
+  h.audio.stop();
+});
+test('Autoplay starts immediately when the browser already permits the audio context to run',async()=>{
+  const h=harness();h.context.state='running';
+  h.context.resume=async()=>{throw new Error('Already running; resume is unnecessary');};
+  assert.equal(await h.audio.unlock(),true);
+  assert.ok(h.notes.length>0);assert.equal(h.timers.length,1);h.audio.stop();
+});
+test('A reveal received before audio is ready plays once after startup completes',async()=>{
+  const h=harness({intro:false});let ready;
+  h.context.resume=()=>new Promise(resolve=>{ready=()=>{h.context.state='running';resolve();};});
+  const starting=h.audio.unlock();h.audio.play('incorrect');
+  assert.equal(h.notes.length,0);ready();await starting;
+  assert.deepEqual(h.notes.map(note=>note.hz),[190,125]);
+  const count=h.notes.length;await h.audio.unlock();assert.equal(h.notes.length,count);
+  assert.equal(h.audio.pendingEffect,null);h.audio.stop();
+});
+test('Tetot temporarily lowers background volume without interrupting the music loop',async()=>{
+  const h=harness();await h.audio.unlock();const timer=h.audio.timer;
+  h.audio.play('incorrect');
+  assert.equal(h.audio.timer,timer);
+  assert.ok(h.audio.musicGain.gain.events.some(event=>event[0]==='set'&&event[1]===.15));
+  assert.ok(h.audio.musicGain.gain.events.some(event=>event[0]==='ramp'&&event[1]===1));
   h.audio.stop();
 });

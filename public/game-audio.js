@@ -12,6 +12,7 @@ export class GameAudio {
     this.enabled=enabled;this.createContext=createContext;this.setTimer=setTimer;this.clearTimer=clearTimer;this.onChange=onChange;
     this.unlocked=false;this.introPlayed=!intro;this.music=intro?'lobby':'off';this.timer=null;this.voices=new Set();
     this.lastClickAt=-Infinity;
+    this.pendingEffect=null;
   }
   async unlock(){
     if(!this.enabled)return false;
@@ -19,8 +20,11 @@ export class GameAudio {
       if(!this.context){
         this.context=this.createContext();this.master=this.context.createGain();
         this.master.gain.value=1;this.master.connect(this.context.destination);
+        this.musicGain=this.context.createGain();this.musicGain.gain.value=1;this.musicGain.connect(this.master);
         this.context.onstatechange=()=>{
-          if(this.context.state!=='running'){this.unlocked=false;this.stop();}
+          if(this.context.state!=='running'){
+            this.unlocked=false;this.stopMusic();this.stopVoices();this.lastClickAt=-Infinity;
+          }
           this.onChange();
         };
       }
@@ -28,7 +32,10 @@ export class GameAudio {
       if(!this.enabled||this.context.state!=='running')return false;
       this.unlocked=true;
       if(!this.introPlayed){this.introPlayed=true;this.play('intro');}
-      this.startMusic();this.onChange();return true;
+      this.startMusic();
+      const pending=this.pendingEffect;this.pendingEffect=null;
+      if(pending&&pending.expires>Date.now())this.play(pending.kind);
+      this.onChange();return true;
     }catch{this.unlocked=false;this.onChange();return false;}
   }
   tone(frequency,delay,duration,type='sine',volume=.12,channel='effect'){
@@ -39,12 +46,16 @@ export class GameAudio {
     gain.gain.setValueAtTime(.0001,at);gain.gain.linearRampToValueAtTime(volume,at+(channel==='music'?.025:.008));
     if(channel==='music')gain.gain.setValueAtTime(volume,at+Math.max(.025,duration-.06));
     gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
-    oscillator.connect(gain);gain.connect(this.master);this.voices.add(voice);
+    oscillator.connect(gain);gain.connect(channel==='music'?this.musicGain:this.master);this.voices.add(voice);
     oscillator.onended=()=>{this.voices.delete(voice);oscillator.disconnect();gain.disconnect();};
     oscillator.start(at);oscillator.stop(at+duration);
   }
   play(kind){
-    if(!this.enabled||!this.unlocked||this.context?.state!=='running')return;
+    if(!this.enabled)return;
+    if(!this.unlocked||this.context?.state!=='running'){
+      if(['correct','incorrect','podium'].includes(kind))this.pendingEffect={kind,expires:Date.now()+2500};
+      return;
+    }
     if(kind==='click'){
       const now=this.context.currentTime;
       if(now-this.lastClickAt<.09)return;
@@ -53,8 +64,14 @@ export class GameAudio {
       return;
     }
     this.stopVoices('effect');
+    if(['correct','incorrect','podium'].includes(kind)){
+      const gain=this.musicGain.gain,now=this.context.currentTime;
+      gain.cancelScheduledValues(now);gain.setValueAtTime(.15,now);
+      gain.setValueAtTime(.15,now+(kind==='podium'?1.5:.8));
+      gain.linearRampToValueAtTime(1,now+(kind==='podium'?1.8:1.1));
+    }
     if(kind==='incorrect'){
-      this.tone(190,0,.23,'sawtooth',.12);this.tone(125,.25,.48,'sawtooth',.12);
+      this.tone(190,0,.25,'sawtooth',.22);this.tone(125,.28,.5,'sawtooth',.22);
     }else if(kind==='correct'){
       [784,988,1175,1568].forEach((note,i)=>this.tone(note,i*.09,.28,'triangle',.18));
     }else if(kind==='intro'){
@@ -107,5 +124,5 @@ export class GameAudio {
       voice.oscillator.disconnect();voice.gain.disconnect();this.voices.delete(voice);
     }
   }
-  stop(){this.stopMusic();this.stopVoices();this.lastClickAt=-Infinity;}
+  stop(){this.stopMusic();this.stopVoices();this.lastClickAt=-Infinity;this.pendingEffect=null;}
 }

@@ -2,19 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {GameAudio,revealCue} from '../public/game-audio.js';
 
-function harness(){
+function harness(options={}){
   const notes=[],timers=[];
   const param=()=>({value:0,setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
   const context={state:'suspended',currentTime:0,destination:{},
     async resume(){this.state='running';},
     createGain(){return {gain:param(),connect(){},disconnect(){}};},
     createOscillator(){
-      const note={frequency:{setValueAtTime(value){note.hz=value;}},connect(){},disconnect(){},start(at){note.started=at;},stop(at){if(at===undefined)note.onended?.();}};
+      const note={frequency:{setValueAtTime(value){note.hz=value;}},connect(){},disconnect(){},start(at){note.started=at;},stop(at){if(at===undefined)note.onended?.();else note.ends=at;}};
       notes.push(note);return note;
     }
   };
   let contexts=0;
-  const audio=new GameAudio({createContext:()=>{contexts++;return context;},setTimer:(callback,delay)=>{const timer={callback,delay};timers.push(timer);return timer;},clearTimer:timer=>{timer.cancelled=true;}});
+  const audio=new GameAudio({...options,createContext:()=>{contexts++;return context;},setTimer:(callback,delay)=>{const timer={callback,delay};timers.push(timer);return timer;},clearTimer:timer=>{timer.cancelled=true;}});
   return {audio,notes,timers,context,get contexts(){return contexts;}};
 }
 
@@ -53,7 +53,7 @@ test('Mute stops current effects and music; reenabling does not replay the intro
   assert.equal(h.audio.master.gain.value,0);
   const count=h.notes.length;h.audio.play('incorrect');assert.equal(h.notes.length,count);
   h.audio.setEnabled(true);assert.equal(h.audio.master.gain.value,1);
-  assert.equal(h.notes.length,count+10);h.audio.stop();
+  assert.ok(h.notes.length>count);assert.equal(h.audio.introPlayed,true);h.audio.stop();
 });
 test('Round transitions replace the music loop and off removes all background notes',async()=>{
   const h=harness();await h.audio.unlock();h.audio.setMusic('round');
@@ -73,4 +73,39 @@ test('A blocked audio context fails gracefully and does not schedule music',asyn
   const h=harness();h.context.resume=async()=>{throw new Error('Autoplay blocked');};
   assert.equal(await h.audio.unlock(),false);
   assert.equal(h.notes.length,0);assert.equal(h.timers.length,0);
+});
+test('Music stays continuous across scheduler callbacks and uses different waiting/game rhythms',async()=>{
+  const h=harness();h.audio.introPlayed=true;await h.audio.unlock();
+  assert.equal(h.timers[0].delay,100);
+  for(let i=1;i<=30;i++){h.context.currentTime=i*.1;h.timers[0].callback();}
+  const intervals=h.notes.map(note=>[note.started,note.ends]).sort((a,b)=>a[0]-b[0]);
+  let end=intervals[0][1];
+  for(const [start,stop] of intervals){assert.ok(start<=end,'Unexpected silent gap in waiting music');end=Math.max(end,stop);}
+  assert.ok(end>h.context.currentTime+1);
+  const count=h.notes.length;h.audio.setMusic('round');
+  assert.notEqual(h.notes[count].hz,h.notes[0].hz);
+  assert.ok(h.notes[count].ends-h.notes[count].started<h.notes[0].ends-h.notes[0].started);
+  h.audio.stop();
+});
+test('Settings can play button clicks without starting an intro or background music',async()=>{
+  const h=harness({intro:false});await h.audio.unlock();
+  assert.equal(h.notes.length,0);assert.equal(h.timers.length,0);
+  h.audio.play('click');assert.equal(h.notes.length,1);assert.equal(h.notes[0].hz,620);
+  h.audio.setEnabled(false);h.audio.play('click');assert.equal(h.notes.length,1);
+});
+test('Rapid repeated clicks are throttled and never accumulate overlapping click notes',async()=>{
+  const h=harness({intro:false});await h.audio.unlock();
+  for(let i=0;i<20;i++)h.audio.play('click');
+  assert.equal(h.notes.length,1);
+  h.context.currentTime=.1;h.audio.play('click');
+  assert.equal(h.notes.length,2);
+  assert.equal([...h.audio.voices].filter(voice=>voice.channel==='click').length,1);
+  h.audio.stop();
+});
+test('A new reveal effect replaces the old effect without stopping background music',async()=>{
+  const h=harness();await h.audio.unlock();h.audio.play('correct');
+  h.audio.play('incorrect');
+  assert.equal([...h.audio.voices].filter(voice=>voice.channel==='effect').length,2);
+  assert.ok([...h.audio.voices].some(voice=>voice.channel==='music'));
+  h.audio.stop();
 });

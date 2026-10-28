@@ -8,9 +8,10 @@ export function revealCue(previous,next){
 }
 
 export class GameAudio {
-  constructor({enabled=true,createContext=()=>new AudioContext(),setTimer=setInterval,clearTimer=clearInterval,onChange=()=>{}}={}){
+  constructor({enabled=true,intro=true,createContext=()=>new AudioContext(),setTimer=setInterval,clearTimer=clearInterval,onChange=()=>{}}={}){
     this.enabled=enabled;this.createContext=createContext;this.setTimer=setTimer;this.clearTimer=clearTimer;this.onChange=onChange;
-    this.unlocked=false;this.introPlayed=false;this.music='lobby';this.timer=null;this.voices=new Set();
+    this.unlocked=false;this.introPlayed=!intro;this.music=intro?'lobby':'off';this.timer=null;this.voices=new Set();
+    this.lastClickAt=-Infinity;
   }
   async unlock(){
     if(!this.enabled)return false;
@@ -35,13 +36,23 @@ export class GameAudio {
     const oscillator=this.context.createOscillator(),gain=this.context.createGain(),at=this.context.currentTime+delay;
     const voice={oscillator,gain,channel};
     oscillator.type=type;oscillator.frequency.setValueAtTime(frequency,at);
-    gain.gain.setValueAtTime(.0001,at);gain.gain.linearRampToValueAtTime(volume,at+.008);
+    gain.gain.setValueAtTime(.0001,at);gain.gain.linearRampToValueAtTime(volume,at+(channel==='music'?.025:.008));
+    if(channel==='music')gain.gain.setValueAtTime(volume,at+Math.max(.025,duration-.06));
     gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
     oscillator.connect(gain);gain.connect(this.master);this.voices.add(voice);
     oscillator.onended=()=>{this.voices.delete(voice);oscillator.disconnect();gain.disconnect();};
     oscillator.start(at);oscillator.stop(at+duration);
   }
   play(kind){
+    if(!this.enabled||!this.unlocked||this.context?.state!=='running')return;
+    if(kind==='click'){
+      const now=this.context.currentTime;
+      if(now-this.lastClickAt<.09)return;
+      this.lastClickAt=now;this.stopVoices('click');
+      this.tone(620,0,.06,'triangle',.055,'click');
+      return;
+    }
+    this.stopVoices('effect');
     if(kind==='incorrect'){
       this.tone(190,0,.23,'sawtooth',.12);this.tone(125,.25,.48,'sawtooth',.12);
     }else if(kind==='correct'){
@@ -64,15 +75,27 @@ export class GameAudio {
   }
   startMusic(){
     if(this.timer!==null||!this.enabled||!this.unlocked||this.music==='off')return;
-    let bar=0;
+    let step=0,nextAt=this.context.currentTime+.03;
     const schedule=()=>{
-      if(!this.enabled||!this.unlocked)return;
-      const round=this.music==='round',roots=[131,110,147,98],root=roots[bar++%roots.length];
-      const notes=round?[1,2,1,2,1.5,2,1.5,2]:[2,2.5,3,4,3,2.5,2,1.5];
-      notes.forEach((ratio,i)=>this.tone(root*ratio,.03+i*.25,.19,round?'triangle':'sine',round?.035:.018,'music'));
-      [0,1].forEach(at=>this.tone(root,.03+at,.7,'sine',round?.045:.025,'music'));
+      if(!this.enabled||!this.unlocked||this.context.state!=='running')return;
+      const now=this.context.currentTime,round=this.music==='round',beat=round?.25:.42;
+      // Schedule ahead on the audio clock; interval delays no longer separate musical phrases.
+      nextAt=Math.max(nextAt,now+.015);
+      while(nextAt<now+1.25){
+        const roots=round?[146.83,130.81,116.54,110]:[130.81,110,87.31,98];
+        const root=roots[Math.floor(step/8)%roots.length],delay=nextAt-this.context.currentTime;
+        const melody=round?[2,3,4,3,2,4,3,4]:[2,2.5,3,4,3,2.5,2,3];
+        this.tone(root*melody[step%8],delay,beat*1.12,round?'triangle':'sine',round?.035:.025,'music');
+        if(step%8===0){
+          const third=round?1.2:1.25;
+          [1,third,1.5].forEach(ratio=>this.tone(root*ratio,delay,beat*8+.12,'sine',.012,'music'));
+        }
+        if(step%2===0)this.tone(root/2,delay,beat*2+.06,'triangle',round?.035:.02,'music');
+        if(round)this.tone(step%2?880:73.42,delay,.09,step%2?'triangle':'sine',.012,'music');
+        nextAt+=beat;step++;
+      }
     };
-    schedule();this.timer=this.setTimer(schedule,2000);
+    schedule();this.timer=this.setTimer(schedule,100);
   }
   stopMusic(){
     if(this.timer!==null){this.clearTimer(this.timer);this.timer=null;}
@@ -84,5 +107,5 @@ export class GameAudio {
       voice.oscillator.disconnect();voice.gain.disconnect();this.voices.delete(voice);
     }
   }
-  stop(){this.stopMusic();this.stopVoices();}
+  stop(){this.stopMusic();this.stopVoices();this.lastClickAt=-Infinity;}
 }

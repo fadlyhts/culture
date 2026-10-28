@@ -12,7 +12,7 @@ let state=null, draft=[], editId=null, dirty=false, mode=pageMode, busy=false;
 let sound=true, editorQuestions='', linksKey='';
 let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTick=-1;
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
-const audio=new GameAudio({enabled:sound&&!settingsPage,onChange:updateSoundUI});
+const audio=new GameAudio({enabled:sound,intro:!settingsPage,onChange:updateSoundUI});
 function updateSoundUI(){
   $('#btnSound').textContent=sound?'Suara: ON':'Suara: OFF';
   $('#btnSound').setAttribute('aria-pressed',String(sound));
@@ -22,7 +22,7 @@ function syncGameMusic(){
   if(settingsPage)return;
   const now=Date.now()+serverOffset;
   const running=state?.started&&!state.locked&&(!state.deadline||state.deadline>now);
-  audio.setMusic(state?.tournament.finished||!$('#ov').hidden?'off':!state||!state.started?'lobby':running?'round':'off');
+  audio.setMusic(state?.tournament.finished||!$('#ovPodium').hidden?'off':running&&$('#ov').hidden?'round':'lobby');
 }
 async function unlockAudio(event){
   if(settingsPage||!sound||event?.target?.closest('#btnSound'))return;
@@ -35,6 +35,14 @@ if(!settingsPage){
   window.addEventListener('pagehide',()=>audio.stop());
   window.addEventListener('pageshow',syncGameMusic);
 }
+document.addEventListener('click',async()=>{
+  if(!sound)return;
+  await audio.unlock();audio.play('click');
+});
+window.addEventListener('storage',event=>{
+  if(event.key!=='family100.sound')return;
+  sound=event.newValue!=='false';audio.setEnabled(sound);syncGameMusic();updateSoundUI();
+});
 updateSoundUI();
 document.title=settingsPage?(pageMode==='extra'?'Pengaturan soal tambahan':'Pengaturan soal utama')+' / Family 100':'Kuis Family 100 DATN';
 for(const link of document.querySelectorAll('[data-page]')){

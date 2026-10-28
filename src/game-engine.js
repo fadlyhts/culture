@@ -139,6 +139,7 @@ export function submit(s,team,data) {
   if(tournament.finished)fail('FINISHED','Permainan selesai. Podium sudah lengkap.',409);
   if(finalized(s))fail('FINISHED','Hasil soal ini sudah ditetapkan.',409);
   if(tournament.winners.some(w=>w.team===team))fail('WINNER','Tim sudah mendapat juara dan tidak ikut babak tambahan.',403);
+  if(Date.now()<r.startedAt)fail('COUNTDOWN','Bersiap, tunggu hitung mundur selesai.',409);
   if(r.submissions.some(x=>x.team===team))fail('ALREADY_SUBMITTED','Tim ini sudah mengirim satu jawaban untuk soal ini.',409);
   const text=str(data.text,100,'Jawaban'),norm=normalize(text);
   if(!norm)fail('INVALID','Isi jawaban.');
@@ -154,19 +155,23 @@ export function submit(s,team,data) {
 const started=r=>r&&(r.startedAt||r.locked||r.submissions.length||r.open.length);
 export function expireRounds(s,now=Date.now()) {
   let changed=false;
-  for(const r of Object.values(s.run))if(!r.locked&&r.deadline&&now>=r.deadline){r.locked=true;changed=true;}
+  for(const r of Object.values(s.run)){
+    if(!r.locked&&r.revealPending&&now>=r.startedAt){r.revealPending=false;changed=true;}
+    if(!r.locked&&r.deadline&&now>=r.deadline){r.locked=true;changed=true;}
+  }
   if(changed)s.revision++;
   return changed;
 }
 function startRound(r) {
   if(r.locked||r.startedAt!==null) return;
-  r.startedAt=Date.now();r.deadline=r.startedAt+30000;
+  r.startedAt=Date.now()+5000;r.deadline=r.startedAt+30000;r.revealPending=true;
 }
 export function command(s,c) {
   if(!c||typeof c.type!=='string')fail('INVALID','Perintah tidak valid.');
   const r=roundOf(s),q=s.questions.find(q=>q.id===s.cur);
     const roundCommands=['settle','start','lock','reveal','hide','revealAll','hideAll','multiplier','strike','clearStrikes'];
     if(roundCommands.includes(c.type)&&(c.questionId!==s.cur||c.generation!==r.generation))fail('STALE_ROUND','Soal berubah. Muat ulang sebelum menjalankan perintah.',409);
+   if(['reveal','revealAll'].includes(c.type)&&r.startedAt>Date.now())fail('COUNTDOWN','Tunggu hitung mundur selesai sebelum membuka jawaban.',409);
    if(['reveal','hide','revealAll','hideAll'].includes(c.type)&&finalized(s))fail('FINISHED','Poin soal yang hasilnya sudah ditetapkan tidak dapat diubah.',409);
     switch(c.type){
      case 'settle':settle(s);break;
@@ -251,8 +256,8 @@ export function command(s,c) {
 }
 export function project(s,role) {
   const tournament=tournamentOf(s);
-  const q=s.questions.find(q=>q.id===s.cur),r=roundOf(s),total=scores(s),now=Date.now(),begun=r.startedAt!==null,base={
-    schema:s.schema,revision:s.revision,cur:s.cur,generation:r.generation,questionIndex:s.questions.findIndex(q=>q.id===s.cur),questionCount:s.questions.length,question:begun?q.q:'Tunggu pembawa acara menekan Mulai.',started:begun,deadline:r.deadline||null,serverNow:now,locked:r.locked||!!(r.deadline&&now>=r.deadline),mult:r.mult,strikes:r.strikes,teams:s.teams.map((t,i)=>({
+  const q=s.questions.find(q=>q.id===s.cur),r=roundOf(s),total=scores(s),now=Date.now(),begun=r.startedAt!==null,preparing=begun&&r.startedAt>now,base={
+    schema:s.schema,revision:s.revision,cur:s.cur,generation:r.generation,questionIndex:s.questions.findIndex(q=>q.id===s.cur),questionCount:s.questions.length,question:preparing?'Bersiap, soal segera dimulai.':begun?q.q:'Tunggu pembawa acara menekan Mulai.',started:begun,startsAt:r.startedAt,deadline:r.deadline||null,serverNow:now,locked:r.locked||!!(r.deadline&&now>=r.deadline),mult:r.mult,strikes:r.strikes,teams:s.teams.map((t,i)=>({
       name:t.name,score:total[i],contestScore:total[i]-(tournament.baseline[i]||0),place:tournament.winners.find(w=>w.team===i)?.rank||null
     }))
   };

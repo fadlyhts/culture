@@ -133,7 +133,7 @@ $('#f').onsubmit=async e=>{
       if(['ALREADY_SUBMITTED','WINNER','FINISHED'].includes(error.code))await live.start();
       if(state&&state.cur===sent.questionId&&state.generation===sent.generation)say(error.message,'bad');
     }
-    if(['ALREADY_SUBMITTED','WINNER','FINISHED','DUPLICATE','LOCKED','STALE_ROUND','INVALID'].includes(error.code))pending=null;
+    if(['COUNTDOWN','ALREADY_SUBMITTED','WINNER','FINISHED','DUPLICATE','LOCKED','STALE_ROUND','INVALID'].includes(error.code))pending=null;
   }
   finally{
     busy=false;
@@ -146,7 +146,7 @@ function updateInput(){
   if(!state)return;
   const accepting=['open','urgent'].includes(currentRound().phase);
   $('#send').disabled=busy||state.submissions.length>0||state.eligible===false||!accepting||!online||!$('#ans').value.trim();
-  $('#send').textContent=busy?'Mengirim jawaban...':state.teams[state.team].place?'Juara '+state.teams[state.team].place+' / selesai':state.submissions.length?'Jawaban sudah dikirim':state.eligible===false?'Menunggu babak berikutnya':!state.started?'Tunggu soal dimulai':!accepting?'Jawaban terkunci':!online?'Menunggu koneksi':'Kirim jawaban';
+  $('#send').textContent=busy?'Mengirim jawaban...':state.teams[state.team].place?'Juara '+state.teams[state.team].place+' / selesai':state.submissions.length?'Jawaban sudah dikirim':state.eligible===false?'Menunggu babak berikutnya':currentRound().phase==='preparing'?'Bersiap, soal segera dimulai':!state.started?'Tunggu soal dimulai':!accepting?'Jawaban terkunci':!online?'Menunggu koneksi':'Kirim jawaban';
 }
 function updateClock(){
   if(!state)return;
@@ -154,15 +154,15 @@ function updateClock(){
   $('#play').dataset.phase=phase;
   $('#roundClock').dataset.phase=phase;
   $('#seconds').textContent=seconds===null?'--':seconds;
-  $('#clockUnit').textContent=phase==='waiting'?'bersiap':phase==='locked'?'selesai':'detik';
-  $('#roundClock').setAttribute('aria-label',phase==='waiting'?'Menunggu soal dimulai':phase==='locked'?'Waktu menjawab selesai':seconds===null?'Jawaban terbuka':seconds+' detik tersisa');
+  $('#clockUnit').textContent=phase==='preparing'?'mulai dalam':phase==='waiting'?'bersiap':phase==='locked'?'selesai':'detik';
+  $('#roundClock').setAttribute('aria-label',phase==='preparing'?'Soal dimulai dalam '+seconds+' detik':phase==='waiting'?'Menunggu soal dimulai':phase==='locked'?'Waktu menjawab selesai':seconds===null?'Jawaban terbuka':seconds+' detik tersisa');
   $('#timeFill').style.transform='scaleX('+progress+')';
   const place=state.teams[state.team].place;
-  const hint=place?'Selamat, timmu juara '+place+'! Tidak ikut babak tambahan lagi.':state.submissions.length?'Jawaban sudah dikirim. Tunggu panitia membuka papan.':state.eligible===false?'Babak selesai. Tunggu keputusan pembawa acara.':phase==='waiting'?'Bersiap, tunggu pembawa acara.':phase==='locked'?'Jawaban terkunci. Tunggu panitia membuka papan.':phase==='urgent'?'Waktu hampir habis! Kirim jawabanmu sekarang.':'Pilih satu jawaban terbaik. Hanya pengirim tercepat mendapat poin!';
+  const hint=place?'Selamat, timmu juara '+place+'! Tidak ikut babak tambahan lagi.':state.submissions.length?'Jawaban sudah dikirim. Tunggu panitia membuka papan.':state.eligible===false?'Babak selesai. Tunggu keputusan pembawa acara.':phase==='preparing'?'Bersiap! Pertanyaan muncul setelah hitung mundur selesai.':phase==='waiting'?'Bersiap, tunggu pembawa acara.':phase==='locked'?'Jawaban terkunci. Tunggu panitia membuka papan.':phase==='urgent'?'Waktu hampir habis! Kirim jawabanmu sekarang.':'Pilih satu jawaban terbaik. Hanya pengirim tercepat mendapat poin!';
   if($('#roundHint').textContent!==hint)$('#roundHint').textContent=hint;
-  $('#lockpill').textContent=place?'Juara '+place:state.eligible===false?'Babak selesai':phase==='waiting'?'Belum dimulai':phase==='locked'?'Terkunci':'Jawab sekarang';
-  $('#lockpill').className='pill '+(phase==='locked'?'lock':phase==='waiting'?'waiting':'open');
-  $('#ans').disabled=phase==='waiting'||phase==='locked'||state.submissions.length>0||state.eligible===false||busy;
+  $('#lockpill').textContent=place?'Juara '+place:state.eligible===false?'Babak selesai':phase==='preparing'?'Bersiap':phase==='waiting'?'Belum dimulai':phase==='locked'?'Terkunci':'Jawab sekarang';
+  $('#lockpill').className='pill '+(phase==='locked'?'lock':['waiting','preparing'].includes(phase)?'waiting':'open');
+  $('#ans').disabled=['waiting','preparing','locked'].includes(phase)||state.submissions.length>0||state.eligible===false||busy;
   updateInput();
 }
 $('#ans').addEventListener('input',updateInput);

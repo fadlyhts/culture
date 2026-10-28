@@ -1,19 +1,21 @@
-import test from 'node:test';
+import test,{beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {createState,command,submit,roundOf,project,validateQuestions} from '../src/game-engine.js';
 import {validateBackup} from '../src/game-room.js';
 
 const act=(s,c)=>command(s,{questionId:s.cur,generation:roundOf(s).generation,...c});
 const send=(s,team,text)=>submit(s,team,{questionId:s.cur,generation:roundOf(s).generation,text,requestId:crypto.randomUUID()});
+let now;
+beforeEach(t=>{now=1000000;t.mock.method(Date,'now',()=>now);});
 function setup(totals=[100,0,0,0,0,0]){
   const s=createState();
   s.questions=Array.from({length:9},(_,i)=>({id:'q'+i,q:'Question '+i,a:[{id:'a'+i,t:'Alpha',al:'first',p:30},{id:'b'+i,t:'Beta',al:'',p:20},{id:'c'+i,t:'Gamma',al:'',p:10},{id:'d'+i,t:'Delta',al:'',p:20}]}));
   s.questions=validateQuestions(s.questions);
   s.run={};s.cur='q4';s.teams.forEach((t,i)=>t.adj=totals[i]);
-  act(s,{type:'start'});act(s,{type:'lock'});act(s,{type:'settle'});
+  act(s,{type:'start'});now+=5000;act(s,{type:'lock'});act(s,{type:'settle'});
   return s;
 }
-function next(s){act(s,{type:'active',id:s.questions[s.questions.findIndex(q=>q.id===s.cur)+1].id,start:true});}
+function next(s){act(s,{type:'active',id:s.questions[s.questions.findIndex(q=>q.id===s.cur)+1].id,start:true});now+=5000;}
 function finish(s){act(s,{type:'revealAll'});act(s,{type:'settle'});}
 
 test('One main winner sits out; two different extra leaders fill the podium immediately',()=>{
@@ -49,6 +51,7 @@ test('Extra contest resets main scores and fixed winners persist through restore
 });
 test('Results require locked and revealed points and cannot be changed afterward',()=>{
   const s=createState();s.cur=s.questions[4].id;act(s,{type:'start'});
+  now+=5000;
   send(s,0,s.questions[4].a[0].t);
   assert.throws(()=>act(s,{type:'settle'}),{code:'LOCK_FIRST'});act(s,{type:'lock'});
   assert.throws(()=>act(s,{type:'settle'}),{code:'REVEAL_FIRST'});finish(s);

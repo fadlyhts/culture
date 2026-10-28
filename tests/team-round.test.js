@@ -17,6 +17,13 @@ test('Waiting, manual lock and legacy rounds display distinct participant states
   assert.deepEqual(roundStatus({started:true,locked:true,deadline:130000},110000),{phase:'locked',seconds:0,progress:0});
   assert.deepEqual(roundStatus({started:true,locked:false,deadline:null},110000),{phase:'open',seconds:null,progress:1});
 });
+test('Five-second preparation counts 5 to 1 before exposing the thirty-second answer phase',()=>{
+  const state={started:true,locked:false,startsAt:105000,deadline:135000};
+  assert.deepEqual([100000,101000,102000,103000,104000].map(now=>roundStatus(state,now).seconds),[5,4,3,2,1]);
+  assert.equal(roundStatus(state,104999).phase,'preparing');
+  assert.deepEqual(roundStatus(state,105000),{phase:'open',seconds:30,progress:1});
+  assert.equal(roundStatus(state,135000).phase,'locked');
+});
 test('All six participant pages include every control required by the interactive client',async()=>{
   const base=new URL('../public/',import.meta.url),source=await readFile(new URL('team.js',base),'utf8');
   const required=[...source.matchAll(/\$\(['"]#([a-zA-Z][a-zA-Z0-9_-]*)/g)].map(m=>m[1]);

@@ -31,7 +31,7 @@ export class GameRoom {
     this.scheduleTimer();
   }
    scheduleTimer(){
-    const deadlines=Object.values(this.state.run).filter(r=>!r.locked&&r.deadline).map(r=>r.deadline);
+    const deadlines=Object.values(this.state.run).filter(r=>!r.locked&&r.deadline).map(r=>r.revealPending?r.startedAt:r.deadline);
     if(deadlines.length)this.ctx.storage.setAlarm?.(Math.max(Date.now(),Math.min(...deadlines)));
     else this.ctx.storage.deleteAlarm?.();
   }

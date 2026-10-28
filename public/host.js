@@ -3,6 +3,7 @@ import {shortCode} from './invite-code.js';
 import {bankEntries,insertQuestion,replaceBank} from './question-bank.js';
 import {hostPage} from './host-pages.js';
 import {GameAudio,revealCue} from './game-audio.js';
+import {roundStatus} from './team-round.js';
 import {
    $, escapeHTML as esc, api, LiveGame, copy
 }
@@ -14,14 +15,14 @@ let serverOffset=0, overlayFocus=null, overlayQuestion=null, timerKey='', lastTi
 try { sound=localStorage.getItem('family100.sound')!=='false'; } catch {}
 const audio=new GameAudio({enabled:sound,intro:!settingsPage,onChange:updateSoundUI});
 function updateSoundUI(){
-  $('#btnSound').textContent=!sound?'Suara: OFF':audio.unlocked?'Suara: ON':'Suara: menunggu izin';
+  $('#btnSound').textContent=!sound?'Suara: OFF':audio.unlocked?'Suara: ON':'Suara: belum aktif';
   $('#btnSound').setAttribute('aria-pressed',String(sound));
   $('#btnEnableAudio').hidden=settingsPage||!sound||audio.unlocked;
 }
 function syncGameMusic(){
   if(settingsPage)return;
   const now=Date.now()+serverOffset;
-  const running=state?.started&&!state.locked&&(!state.deadline||state.deadline>now);
+  const running=state&&['open','urgent'].includes(roundStatus(state,now).phase);
   audio.setMusic(state?.tournament.finished||!$('#ovPodium').hidden?'off':running&&$('#ov').hidden?'round':'lobby');
 }
 async function unlockAudio(event){
@@ -136,13 +137,14 @@ function setMode(){
 }
 function renderPlay(){
     const q=active(),r=run(),list=q.a,gains=Array(6).fill(0);
+    const preparing=roundStatus(state,Date.now()+serverOffset).phase==='preparing';
     q.a.forEach(a=>{
     if(r.open.includes(a.id)&&r.own[a.id]!==undefined)gains[r.own[a.id]]+=a.p*r.mult;
   });
     $('#qmeta').textContent=state.questionIndex<MAIN_QUESTIONS?'Soal '+(state.questionIndex+1)+' dari '+Math.min(state.questionCount,MAIN_QUESTIONS):'Soal tambahan '+(state.questionIndex-MAIN_QUESTIONS+1)+' / perebutan juara '+(state.tournament.winners.length+1);
-    $('#qtext').textContent=state.started?q.q:'Tekan Mulai untuk memunculkan Soal '+(state.questionIndex+1)+'.';
-    $('#view-play').classList.toggle('prestart',!state.started);
-    $('#btnStart').disabled=busy;
+    $('#qtext').textContent=preparing?'Bersiap, soal segera dimulai.':state.started?q.q:'Tekan Mulai untuk memunculkan Soal '+(state.questionIndex+1)+'.';
+    $('#view-play').classList.toggle('prestart',!state.started||preparing);
+    $('#btnStart').disabled=busy||state.started;
     renderTimer();
     const focusedAnswer=document.activeElement?.dataset?.answer;
     const board=$('#board'),cols=list.length>4?2:1;
@@ -160,10 +162,10 @@ function renderPlay(){
     const rows=r.submissions.filter(x=>x.team===i),hidden=!state.locked;
     return '<div class="acol '+(hidden?'is-hidden':'')+'" style="--tc:var(--t'+(i+1)+')"><div class="ahead"><span class="aname">'+esc(t.name)+'</span><span class="acount">'+rows.length+'</span></div>'+(hidden?'<p class="aempty ahid">Jawaban disembunyikan sampai terkunci.</p>':rows.length?'<ol class="alist">'+rows.map(x=>'<li class="'+(x.answerId&&r.open.includes(x.answerId)&&r.own[x.answerId]===i?'hit':'')+'"><span>'+esc(x.text)+(x.answerId&&r.open.includes(x.answerId)?'<small class="answer-result">'+(r.own[x.answerId]===i?'Tercepat, mendapat poin':'Benar, 0 poin — didahului tim lain')+'</small>':'')+'<br><time class="atime">'+new Date(x.time).toLocaleTimeString('id-ID')+'</time></span></li>').join('')+'</ol>':'<p class="aempty">Belum ada jawaban.</p>')+'</div>';
   }).join('');
-  $('#btnLockAll').textContent=r.locked?'✓ Terkunci':'Kunci jawaban';$('#btnLockAll').disabled=state.locked||!state.started;
-  $('#btnCloseAll').disabled=!r.open.length||!state.started;$('#btnRevealAll').disabled=!state.started;
-  for(const button of board.querySelectorAll('button'))button.disabled=!state.started;
-  $('#btnPrev').disabled=state.questionIndex===0;$('#btnNext').disabled=!state.started;
+  $('#btnLockAll').textContent=r.locked?'✓ Terkunci':'Kunci jawaban';$('#btnLockAll').disabled=state.locked||!state.started||preparing;
+  $('#btnCloseAll').disabled=!r.open.length||!state.started||preparing;$('#btnRevealAll').disabled=!state.started||preparing;
+  for(const button of board.querySelectorAll('button'))button.disabled=!state.started||preparing;
+  $('#btnPrev').disabled=state.questionIndex===0||preparing;$('#btnNext').disabled=!state.started||preparing;
   $('#btnNext').textContent=state.questionIndex>=Math.min(MAIN_QUESTIONS,state.questionCount)-1?'Tentukan juara':'Berikutnya';
   if(state.finalized){for(const button of board.querySelectorAll('button'))button.disabled=true;$('#btnRevealAll').disabled=true;$('#btnCloseAll').disabled=true;$('#btnStart').disabled=true;}
   $('#btnSound').setAttribute('aria-pressed',String(sound));$('#multiplier').value=r.mult;$('#multiplier').disabled=r.locked||r.startedAt!==null||r.submissions.length>0;if(busy)busyControls(true);
@@ -210,7 +212,7 @@ $('#btnLogout').onclick=async()=>{await api('/api/logout',{});live.stop();locati
 $('#btnFull').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{status('Layar penuh tidak tersedia di browser ini.');}};
 $('#btnSound').onclick=()=>{sound=!sound;audio.setEnabled(sound&&!settingsPage);try{localStorage.setItem('family100.sound',String(sound));}catch{}if(sound)unlockAudio();syncGameMusic();updateSoundUI();};
 $('#board').onclick=async e=>{const button=e.target.closest('[data-answer]');if(!button)return;const id=button.dataset.answer,open=run().open.includes(id);await cmd({type:open?'hide':'reveal',id});};
-$('#btnStart').onclick=()=>cmd({type:'start'});
+$('#btnStart').onclick=()=>{if(sound)audio.unlock();return cmd({type:'start'});};
 $('#btnResetTop').onclick=resetGame;
 $('#btnLockAll').onclick=()=>cmd({type:'lock'});$('#btnRevealAll').onclick=()=>cmd({type:'revealAll'});$('#btnCloseAll').onclick=()=>cmd({type:'hideAll'});
 async function navigate(offset){
@@ -262,13 +264,23 @@ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.return
 function renderTimer(){
   if(!state||settingsPage)return;
   syncGameMusic();
-  const left=state.deadline?Math.max(0,(state.deadline-Date.now()-serverOffset)/1000):30;
-  const done=state.locked||(state.deadline&&left<=0),sec=done?0:Math.ceil(left);
-  const phase=done?'done':state.deadline?'run':'idle';
+  const now=Date.now()+serverOffset,clock=roundStatus(state,now),preparing=clock.phase==='preparing';
+  const done=clock.phase==='locked',sec=clock.seconds??30;
+  const phase=done?'done':preparing?'preparing':state.started?'run':'idle';
   $('#timer').className='timer is-'+phase+(phase==='run'&&sec<=5?' is-warn':'');
-  $('#timerNum').textContent=sec;$('#timerLbl').textContent=done?'Terkunci':phase==='run'?'detik':'Mulai';
-  $('#timerBar').style.width=(sec/30*100)+'%';$('#timer').setAttribute('aria-label','Waktu menjawab: '+sec+' detik');
-  const key=state.cur+':'+state.generation;
+  $('#timerNum').textContent=sec;$('#timerLbl').textContent=done?'Terkunci':preparing?'Bersiap':phase==='run'?'detik':'Mulai';
+  $('#timerBar').style.width=(clock.progress*100)+'%';$('#timer').setAttribute('aria-label',(preparing?'Mulai dalam: ':'Waktu menjawab: ')+sec+' detik');
+  $('#startCountdown').hidden=!preparing;$('#startCountNumber').textContent=preparing?sec:'';
+  $('#qtext').textContent=preparing?'Bersiap, soal segera dimulai.':state.started?active().q:'Tekan Mulai untuk memunculkan Soal '+(state.questionIndex+1)+'.';
+  $('#view-play').classList.toggle('prestart',!state.started||preparing);
+  for(const button of $('#board').querySelectorAll('button'))button.disabled=busy||!state.started||preparing||state.finalized;
+  $('#btnLockAll').disabled=busy||state.locked||!state.started||preparing;
+  $('#btnRevealAll').disabled=busy||!state.started||preparing||state.finalized;
+  $('#btnCloseAll').disabled=busy||!run().open.length||!state.started||preparing||state.finalized;
+  $('#btnNext').disabled=busy||!state.started||preparing;$('#btnPrev').disabled=busy||state.questionIndex===0||preparing;
+  const key=state.cur+':'+state.generation+':'+state.startsAt;
+  if(preparing)audio.countdown(key,state.startsAt,now);
+  else if(!state.started||state.locked||audio.countdownKey!==key)audio.cancelCountdown();
   if(key!==timerKey){timerKey=key;lastTick=-1;}
   if(sec!==lastTick&&phase==='run'&&sec<=3)tone(720,0,.08,'square');
   if(sec!==lastTick&&done&&lastTick>0&&state.deadline&&Date.now()+serverOffset>=state.deadline)audio.play('incorrect');

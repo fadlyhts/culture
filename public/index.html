@@ -16,6 +16,9 @@
 
   <!-- ================= MAIN ================= -->
   <section id="view-play" role="tabpanel" aria-label="Main">
+    <div class="start-countdown" id="startCountdown" role="status" aria-live="polite" hidden>
+      <span>Bersiap!</span><strong id="startCountNumber">5</strong><span>Soal dimulai setelah hitung mundur</span>
+    </div>
     <div class="scorebar">
       <div class="teams" id="teams"></div>
     </div>
@@ -120,7 +123,7 @@
         </div>
 
         <div class="panel"><h2>Permainan</h2>
-          <p class="help"><b>Cara main per soal:</b> Klik <b>Mulai</b> untuk memberi tim 30 detik menjawab. Saat waktu habis atau jawaban pertama dibuka, ronde terkunci. Poin setiap jawaban benar diberikan hanya ke tim pengirim pertama saat jawaban dibuka. Setelah 5 soal utama, buka poin lalu klik <b>Tentukan juara</b>. Pemimpin tunggal dengan skor positif mendapat posisi podium secara berurutan; seri belum mendapat juara. Juara yang sudah tetap tidak ikut lagi. Tim tersisa memulai perebutan dari 0 dan menjalani satu soal tambahan setiap kali; skor saat seri diteruskan sampai ada juara. Jika ada juara baru, perebutan posisi berikutnya dimulai dari 0. Begitu juara 1–3 lengkap, podium muncul. Jika soal habis, tambahkan soal lewat Edit lalu lanjutkan.</p>
+          <p class="help"><b>Cara main per soal:</b> Klik <b>Mulai</b> untuk hitung mundur 5–4–3–2–1 dengan suara, lalu pertanyaan muncul dan tim mendapat 30 detik penuh untuk menjawab. Saat waktu habis atau jawaban pertama dibuka, ronde terkunci. Poin setiap jawaban benar diberikan hanya ke tim pengirim pertama saat jawaban dibuka. Setelah 5 soal utama, buka poin lalu klik <b>Tentukan juara</b>. Pemimpin tunggal dengan skor positif mendapat posisi podium secara berurutan; seri belum mendapat juara. Juara yang sudah tetap tidak ikut lagi. Tim tersisa memulai perebutan dari 0 dan menjalani satu soal tambahan setiap kali; skor saat seri diteruskan sampai ada juara. Jika ada juara baru, perebutan posisi berikutnya dimulai dari 0. Begitu juara 1–3 lengkap, podium muncul. Jika soal habis, tambahkan soal lewat Edit lalu lanjutkan.</p>
           <p class="help">Layar Main berukuran 16:9 dan muat satu layar tanpa gulir. Pintasan papan ketik: <b>1–9</b> dan <b>0</b> membuka jawaban, <b>←</b> <b>→</b> ganti soal.</p>
           <div class="row">
             <button type="button" class="btn" id="btnResetGame">Reset skor, kunci, dan jawaban tim</button>

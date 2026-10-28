@@ -13,6 +13,7 @@ export class GameAudio {
     this.unlocked=false;this.introPlayed=!intro;this.music=intro?'lobby':'off';this.timer=null;this.voices=new Set();
     this.lastClickAt=-Infinity;
     this.pendingEffect=null;
+    this.countdownKey=null;
   }
   async unlock(){
     if(!this.enabled)return false;
@@ -86,6 +87,18 @@ export class GameAudio {
     if(!enabled)this.stop();else this.startMusic();
     this.onChange();
   }
+  countdown(key,startsAt,serverNow){
+    if(!this.enabled||!this.unlocked||this.context?.state!=='running'||startsAt<=serverNow||this.countdownKey===key)return;
+    this.cancelCountdown();this.stopVoices('effect');this.countdownKey=key;
+    for(let number=Math.min(5,Math.ceil((startsAt-serverNow)/1000));number>=1;number--){
+      const delay=Math.max(0,(startsAt-number*1000-serverNow)/1000);
+      this.tone(660,delay,.16,'square',.13,'countdown');
+    }
+    const go=(startsAt-serverNow)/1000;
+    this.tone(1047,go,.2,'triangle',.2,'countdown');
+    this.tone(1568,go+.12,.35,'triangle',.18,'countdown');
+  }
+  cancelCountdown(){this.stopVoices('countdown');this.countdownKey=null;}
   setMusic(mode){
     if(this.music===mode){this.startMusic();return;}
     this.stopMusic();this.music=mode;this.startMusic();
@@ -124,5 +137,5 @@ export class GameAudio {
       voice.oscillator.disconnect();voice.gain.disconnect();this.voices.delete(voice);
     }
   }
-  stop(){this.stopMusic();this.stopVoices();this.lastClickAt=-Infinity;this.pendingEffect=null;}
+  stop(){this.stopMusic();this.stopVoices();this.lastClickAt=-Infinity;this.pendingEffect=null;this.countdownKey=null;}
 }

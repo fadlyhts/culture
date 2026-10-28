@@ -37,7 +37,7 @@ test('Buka semua plays a positive cue if any newly revealed answer has a correct
   after.run.q.open.push('claimed');after.run.q.own.claimed=3;
   assert.equal(revealCue(before,after),'correct');
 });
-test('Audio waits for browser interaction and plays the opening theme only once',async()=>{
+test('Audio startup remains idempotent and plays the opening theme only once',async()=>{
   const h=harness();h.audio.setMusic('lobby');h.audio.play('correct');
   assert.equal(h.contexts,0);assert.equal(h.notes.length,0);
   assert.equal(await h.audio.unlock(),true);
@@ -131,4 +131,18 @@ test('Tetot temporarily lowers background volume without interrupting the music 
   assert.ok(h.audio.musicGain.gain.events.some(event=>event[0]==='set'&&event[1]===.15));
   assert.ok(h.audio.musicGain.gain.events.some(event=>event[0]==='ramp'&&event[1]===1));
   h.audio.stop();
+});
+test('Preparation beeps align to server time and are not duplicated on repeated snapshots',async()=>{
+  const h=harness({intro:false});await h.audio.unlock();
+  h.audio.countdown('q:1',105000,100000);
+  assert.deepEqual(h.notes.slice(0,5).map(note=>note.started),[0,1,2,3,4]);
+  assert.equal(h.notes[5].started,5);assert.equal(h.notes[6].started,5.12);
+  const count=h.notes.length;h.audio.countdown('q:1',105000,100500);assert.equal(h.notes.length,count);
+  h.audio.cancelCountdown();assert.equal(h.audio.voices.size,0);
+});
+test('Rejoining during preparation schedules remaining digits only',async()=>{
+  const h=harness({intro:false});await h.audio.unlock();
+  h.audio.countdown('q:1',105000,102500);
+  assert.deepEqual(h.notes.slice(0,3).map(note=>note.started),[0,.5,1.5]);
+  assert.equal(h.notes[3].started,2.5);h.audio.stop();
 });

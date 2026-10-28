@@ -31,7 +31,7 @@ test('Accepted retries survive deadline; future questions start fresh and reset 
   let now=200000;t.mock.method(Date,'now',()=>now);
   const s=createState();execute(s,{type:'start'});now+=5000;const first=send(s);now+=30001;
   assert.equal(send(s),first);
-  execute(s,{type:'active',id:s.questions[1].id,start:true});assert.equal(roundOf(s).deadline,now+35000);
+  execute(s,{type:'active',id:s.questions[1].id,start:true});assert.equal(roundOf(s).startedAt,now);assert.equal(roundOf(s).deadline,now+30000);
   execute(s,{type:'reset'});assert.equal(s.cur,s.questions[0].id);assert.equal(roundOf(s).deadline,null);assert.equal(project(s,{role:'team',team:0}).started,false);
 });
 test('A running question cannot be edited and a restored timer closes instead of restarting',()=>{
@@ -51,6 +51,13 @@ test('Only distinct positive leaders receive places; ties continue to extra roun
   assert.deepEqual(resolvePlaces([100,100,60,40,20,0]),[]);
   assert.deepEqual(resolvePlaces([100,0,0,0,0,0]).map(w=>w.team),[0]);
   assert.deepEqual(ranking([100,80,60,60,20,0].map(score=>({score}))).map(t=>t.rank),[1,2,3,3,5,6]);
+});
+test('Countdown is only used at game opening; later manual starts are immediate and reset allows a new opening',t=>{
+  let now=500000;t.mock.method(Date,'now',()=>now);
+  const s=createState();execute(s,{type:'start'});assert.equal(roundOf(s).startedAt,505000);
+  now=510000;execute(s,{type:'active',id:s.questions[1].id});execute(s,{type:'start'});
+  assert.equal(roundOf(s).startedAt,now);assert.equal(roundOf(s).revealPending,false);
+  execute(s,{type:'reset'});execute(s,{type:'start'});assert.equal(roundOf(s).startedAt,now+5000);
 });
 test('Durable Object alarm survives object restart, persists lock and broadcasts without host',async t=>{
   let now=300000;t.mock.method(Date,'now',()=>now);

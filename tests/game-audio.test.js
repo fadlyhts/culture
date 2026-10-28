@@ -146,3 +146,11 @@ test('Rejoining during preparation schedules remaining digits only',async()=>{
   assert.deepEqual(h.notes.slice(0,3).map(note=>note.started),[0,.5,1.5]);
   assert.equal(h.notes[3].started,2.5);h.audio.stop();
 });
+test('Default browser timer calls keep the Window receiver when music starts and stops',async t=>{
+  const h=harness();let scheduled=0,cancelled=0;
+  t.mock.method(globalThis,'setInterval',function(callback,delay){assert.equal(this,globalThis);assert.equal(delay,100);scheduled++;return 123;});
+  t.mock.method(globalThis,'clearInterval',function(timer){assert.equal(this,globalThis);assert.equal(timer,123);cancelled++;});
+  const audio=new GameAudio({createContext:()=>h.context});
+  assert.equal(await audio.unlock(),true);assert.equal(audio.unlocked,true);assert.equal(scheduled,1);
+  audio.stop();assert.equal(cancelled,1);
+});

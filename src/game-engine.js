@@ -162,9 +162,9 @@ export function expireRounds(s,now=Date.now()) {
   if(changed)s.revision++;
   return changed;
 }
-function startRound(r) {
+function startRound(r,preparation=0) {
   if(r.locked||r.startedAt!==null) return;
-  r.startedAt=Date.now()+5000;r.deadline=r.startedAt+30000;r.revealPending=true;
+  r.startedAt=Date.now()+preparation;r.deadline=r.startedAt+30000;r.revealPending=preparation>0;
 }
 export function command(s,c) {
   if(!c||typeof c.type!=='string')fail('INVALID','Perintah tidak valid.');
@@ -185,7 +185,8 @@ export function command(s,c) {
     s.cur=c.id;
     if(c.start===true)startRound(roundOf(s));else roundOf(s);
     break;
-     case 'start':if(tournamentOf(s).finished||finalized(s))fail('FINISHED','Hasil soal sudah ditetapkan.',409);startRound(r);
+     case 'start':if(tournamentOf(s).finished||finalized(s))fail('FINISHED','Hasil soal sudah ditetapkan.',409);
+     startRound(r,s.cur===s.questions[0].id&&!Object.values(s.run).some(started)?5000:0);
     break;
      case 'lock':r.locked=true;
     break;

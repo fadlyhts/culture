@@ -8,7 +8,7 @@ export function revealCue(previous,next){
 }
 
 export class GameAudio {
-  constructor({enabled=true,intro=true,createContext=()=>new AudioContext(),setTimer=setInterval,clearTimer=clearInterval,onChange=()=>{}}={}){
+  constructor({enabled=true,intro=true,createContext=()=>new AudioContext(),setTimer=(callback,delay)=>globalThis.setInterval(callback,delay),clearTimer=timer=>globalThis.clearInterval(timer),onChange=()=>{}}={}){
     this.enabled=enabled;this.createContext=createContext;this.setTimer=setTimer;this.clearTimer=clearTimer;this.onChange=onChange;
     this.unlocked=false;this.introPlayed=!intro;this.music=intro?'lobby':'off';this.timer=null;this.voices=new Set();
     this.lastClickAt=-Infinity;

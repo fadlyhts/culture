@@ -85,6 +85,24 @@ add('Reordering preserves ownership and totals; started questions cannot be edit
     code:'STARTED'
   });
 });
+add('Answer edits persist after a start with no claims but cannot rewrite claimed scores',()=>{
+  const s=productionState();
+  execute(s,{type:'start'});
+  const safe=structuredClone(s.questions);
+  safe[0].a[0].t='Jawaban diperbaiki';safe[0].a[0].p=42;
+  execute(s,{type:'questions',questions:safe});
+  assert.equal(s.questions[0].a[0].t,'Jawaban diperbaiki');
+  const textEdit=structuredClone(s.questions);textEdit[0].q='Pertanyaan diganti';
+  assert.throws(()=>execute(s,{type:'questions',questions:textEdit}),{code:'STARTED'});
+  roundOf(s).startedAt=1;
+  send(s,0,'Jawaban diperbaiki');
+  const claimed=structuredClone(s.questions);claimed[0].a[0].p=99;
+  assert.throws(()=>execute(s,{type:'questions',questions:claimed}),{code:'STARTED'});
+  assert.equal(s.questions[0].a[0].p,42);
+  const other=structuredClone(s.questions);other[1].a[0].t='Soal berikutnya bisa diedit';
+  execute(s,{type:'questions',questions:other});
+  assert.equal(s.questions[1].a[0].t,'Soal berikutnya bisa diedit');
+});
 add('Team projection never exposes hidden answers, matching status, others submissions or invitations',()=>{
   const s=setup();send(s,0,'Tas');send(s,1,'Laptop');const p=project(s,{
     role:'team',team:0

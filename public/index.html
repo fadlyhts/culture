@@ -80,6 +80,7 @@
         </div>
         <div class="panel" id="questionEditor">
           <h2 id="editMeta">Soal</h2>
+          <p class="help edit-lock-note" id="editLockNote" role="status" hidden></p>
           <label class="label" for="eq">Pertanyaan</label>
           <textarea class="field" id="eq" rows="2" maxlength="220" placeholder="Contoh: Sebutkan hewan yang sering dijadikan peliharaan!"></textarea>
 
@@ -99,7 +100,7 @@
             <button type="button" class="btn" id="btnDup">Duplikat</button>
             <button type="button" class="btn btn-ghost" id="btnDelQ">Hapus soal</button>
           </div>
-          <p class="help" style="margin-top:12px">Klik Simpan ke server setelah mengedit. Soal yang sudah dimainkan harus direset sebelum diubah. Isi semua jawaban; hapus baris yang tidak digunakan. Sinonim (dipisah koma) membuat jawaban tim yang ditulis berbeda tetap dikenali, misalnya "bekal, bawa makan".</p>
+          <p class="help" style="margin-top:12px">Klik Simpan ke server setelah mengedit. Jawaban soal yang sudah dimulai masih bisa diubah jika belum ada kiriman, jawaban terbuka, atau hasil juara. Jika sudah ada, soal tersebut dikunci agar skor tetap aman; pilih soal lain yang belum dimainkan. Isi semua jawaban; hapus baris yang tidak digunakan. Sinonim (dipisah koma) membuat jawaban tim yang ditulis berbeda tetap dikenali, misalnya "bekal, bawa makan".</p>
         </div>
 
         <details class="panel" id="io">

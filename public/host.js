@@ -119,8 +119,8 @@ async function cmd(command) {
   catch(e){
     status(e.message);
     $('#gameMsg').textContent=e.message;
-    $('#saveMsg').textContent=e.message;
-    $('#bankMsg').textContent=e.message;
+    $('#saveMsg').textContent='Gagal menyimpan: '+e.message;
+    $('#bankMsg').textContent='Gagal menyimpan. Perubahan belum tersimpan. '+e.message;
     return false;
   }
   finally{
@@ -183,11 +183,20 @@ function renderEditor(){
   renderLinks();editorQuestions=JSON.stringify(draft);
   if(!q)return;
   editId=q.id;
+  const round=state.run[q.id],questionStarted=round?.startedAt!==null&&round?.startedAt!==undefined;
+  const settled=state.tournament.resolved.some(id=>state.questions.findIndex(item=>item.id===id)>=draft.findIndex(item=>item.id===q.id));
+  const protectedQuestion=!!round&&(round.submissions.length>0||round.open.length>0||settled);
+  const note=$('#editLockNote');
+  note.hidden=!questionStarted&&!protectedQuestion;
+  note.textContent=protectedQuestion?'Soal sudah memiliki kiriman, jawaban terbuka, atau hasil juara. Jawaban dan poin tidak dapat diedit agar skor tetap aman. Pilih soal lain yang belum dimainkan.':'Soal sudah dimulai. Pertanyaan tidak dapat diubah; jawaban dan poin masih dapat diedit karena belum ada kiriman atau poin.';
   $('#editMeta').textContent=(extra?'Soal tambahan ':'Soal utama ')+entries.find(entry=>entry.question.id===q.id).number+' dari '+entries.length;
   $('#eq').value=q.q;
+  $('#eq').disabled=questionStarted||protectedQuestion;
   $('#arows').innerHTML=q.a.map((a,i)=>'<div class="arow" data-id="'+a.id+'"><span class="an">'+(i+1)+'</span><input class="field a-t" maxlength="100" aria-label="Jawaban '+(i+1)+'" value="'+esc(a.t)+'"><input class="field a-al" maxlength="300" aria-label="Sinonim '+(i+1)+'" placeholder="Sinonim, dipisah koma" value="'+esc(a.al)+'"><input class="field a-p" type="number" min="0" max="999" aria-label="Poin '+(i+1)+'" value="'+a.p+'"><button class="icon-btn a-del" aria-label="Hapus jawaban '+(i+1)+'">×</button></div>').join('');
+  if(protectedQuestion)for(const control of $('#arows').querySelectorAll('input,button'))control.disabled=true;
   $('#btnAddA').disabled=q.a.length>=10;$('#btnUp').disabled=state.tournament.resolved.length>0||entries[0].question.id===q.id;$('#btnDown').disabled=state.tournament.resolved.length>0||entries[entries.length-1].question.id===q.id;
-  $('#btnDelQ').disabled=state.tournament.resolved.length>0||(!extra&&(draft.length===1||draft.length>MAIN_QUESTIONS));
+  $('#btnAddA').disabled||=protectedQuestion;$('#btnSortA').disabled=protectedQuestion;
+  $('#btnDelQ').disabled=questionStarted||protectedQuestion||state.tournament.resolved.length>0||(!extra&&(draft.length===1||draft.length>MAIN_QUESTIONS));
   $('#btnDup').disabled=!extra&&draft.length>=MAIN_QUESTIONS;
   $('#saveMsg').textContent=dirty?'Ada perubahan belum disimpan.':'Soal tersimpan di server.';
 }

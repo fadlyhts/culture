@@ -55,7 +55,7 @@ Free plans have usage limits and can stop serving when limits are exhausted. Web
 3. Lock answers, then reveal the board. Revealing the first answer also locks the round. Scores are awarded only for revealed answers, with the round multiplier applied. Hiding reverses those points; revealing again does not add them twice.
 4. Move to the next question. Scores accumulate centrally and survive reloads. Reset clears gameplay and score adjustments, retaining questions and team names.
 
-Set the multiplier before any submissions or lock. Started questions cannot be changed or deleted until gameplay is reset. Host manual score controls set a team's total by adjusting its base score until winners have been fixed. Once results are settled, earlier points and question order are frozen; new questions can still be appended.
+Set the multiplier before any submissions or lock. A started question with no submissions, revealed answers or settled result can still have its answers, synonyms and points edited; its question text cannot change. Once a team has submitted, an answer was revealed or a result was settled, edits to that question are blocked to preserve claims and scores. Other questions that have not been played remain editable. Host manual score controls set a team's total by adjusting its base score until winners have been fixed. Once results are settled, earlier points and question order are frozen; new questions can still be appended.
 
 Host and team sessions expire after 12 hours. Rotating a team's invitation invalidates that team's existing sessions. WebSocket reconnect receives a full authoritative snapshot; commands use HTTP. If disconnected, reconnect before submitting; the server rejects stale question/generation requests.
 

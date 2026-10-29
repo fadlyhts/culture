@@ -129,6 +129,23 @@ add('Existing SQLite games receive the six new team names once without losing ga
   assert.equal(room.state.teams[0].name,'Custom name after update');
   db.close();
 });
+add('SQLite API saves a started main question with no answers and protects it after a submission',async()=>{
+  const db=new DatabaseSync(':memory:'),ctx=context(db);let room=new GameRoom(ctx,env);
+  const h=await host(room),a=await team(room,h,0),before=room.state.questions[0].a[0];
+  const edited=structuredClone(room.state.questions);edited[0].a[0].t='Dokumen baru';
+  const response=await room.fetch(req('/api/host/command',{type:'questions',questions:edited},h));
+  assert.equal(response.status,200,JSON.stringify(await response.json()));
+  room=new GameRoom(ctx,env);
+  assert.equal(room.state.questions[0].a[0].t,'Dokumen baru');
+  assert.equal(room.state.questions[0].a[0].id,before.id);
+  const snapshot=await (await room.fetch(req('/api/state',undefined,a))).json();
+  assert.equal((await room.fetch(req('/api/team/submit',{questionId:snapshot.cur,generation:snapshot.generation,text:'Dokumen baru',requestId:'claim'},a))).status,200);
+  edited[0].a[0].p=99;
+  const rejected=await room.fetch(req('/api/host/command',{type:'questions',questions:edited},h));
+  assert.equal(rejected.status,409);assert.equal((await rejected.json()).error.code,'STARTED');
+  assert.equal(room.state.questions[0].a[0].p,before.p);
+  db.close();
+});
 add('Short invitation links open the right team and rotation invalidates old links',async()=>{
   const db=new DatabaseSync(':memory:'),room=new GameRoom(context(db),env),h=await host(room);
   const token=room.state.invitations[0].token,code=shortCode(token);

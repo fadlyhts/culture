@@ -150,6 +150,7 @@ textarea.field { resize: vertical; min-height: 76px; line-height: 1.35; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .row + .row { margin-top: 12px; }
 .help { color: var(--muted); font-size: 14px; margin: 0 0 10px; }
+.edit-lock-note { color: var(--gold); font-weight: 600; }
 .msg { color: var(--gold); font-size: 14px; min-height: 1.4em; margin: 10px 0 0; }
 details.panel > summary { cursor: pointer; font: 700 22px/1.1 var(--font-cond); letter-spacing: 0.04em; text-transform: uppercase; }
 details.panel[open] > summary { margin-bottom: 12px; }

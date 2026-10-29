@@ -219,10 +219,15 @@ export function command(s,c) {
      case 'questions':{
        const next=validateQuestions(c.questions);
        if(tournamentOf(s).resolved.length&&s.questions.some((q,i)=>next[i]?.id!==q.id))fail('STARTED','Urutan soal tidak dapat diubah setelah hasil juara ditetapkan.',409);
-      for(const old of s.questions)if(started(s.run[old.id])){
-        const n=next.find(q=>q.id===old.id);
-        if(!n||JSON.stringify(n)!==JSON.stringify(old))fail('STARTED','Reset permainan sebelum mengubah/menghapus soal yang sudah dimainkan.',409);
-      }
+       for(const old of s.questions)if(started(s.run[old.id])){
+         const n=next.find(q=>q.id===old.id);
+         const round=s.run[old.id],index=s.questions.indexOf(old);
+         const settled=tournamentOf(s).resolved.some(id=>s.questions.findIndex(q=>q.id===id)>=index);
+         if(!n)fail('STARTED','Soal yang sudah dimainkan tidak dapat dihapus. Perubahan tidak disimpan.',409);
+         if(JSON.stringify(n)===JSON.stringify(old))continue;
+         if(settled||round.submissions.length||round.open.length)fail('STARTED','Soal ini sudah memiliki kiriman, jawaban terbuka, atau hasil juara. Perubahan tidak disimpan agar skor tetap aman. Edit soal lain yang belum dimainkan.',409);
+         if(n.q!==old.q)fail('STARTED','Pertanyaan yang sudah dimulai tidak dapat diubah. Jawaban dan poin masih dapat diedit karena belum ada kiriman atau poin.',409);
+       }
       s.questions=next;
       if(!next.some(q=>q.id===s.cur))s.cur=next[0].id;
       break;
